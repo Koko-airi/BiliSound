@@ -23,7 +23,7 @@ public struct FullScreenPlayerView: View {
             
             // Adaptively scale rotating disk so all player elements (timestamps, scrubber, controls)
             // fit comfortably without clipping on vertical/portrait screens of any device size.
-            let diskSize: CGFloat = min(screenWidth - 80, screenHeight > 750 ? 240 : 180)
+            let diskSize: CGFloat = min(screenWidth - 100, screenHeight > 750 ? 230 : 170)
             
             ZStack {
                 // Background Dynamic Blurred Art spanning the full window including under notch/corners
@@ -31,10 +31,10 @@ public struct FullScreenPlayerView: View {
                     .frame(width: screenWidth, height: screenHeight)
                 
                 VStack(spacing: 0) {
-                    // Top Header Bar: positioned safely below the Dynamic Island / Notch and status bar icons
+                    // Top Header Bar: comfortably below Dynamic Island / Notch and status bar icons
                     topBar
-                        .padding(.top, max(safeTop, 20) + 12)
-                        .padding(.horizontal, 22)
+                        .padding(.top, max(safeTop, 44) + 16)
+                        .padding(.horizontal, 28)
                         .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 6)
@@ -52,24 +52,24 @@ public struct FullScreenPlayerView: View {
                     
                     Spacer(minLength: 6)
                     
-                    // Track Info & Feature 4 Version Picker spanning full width
+                    // Track Info & Feature 4 Version Picker
                     VStack(spacing: 6) {
                         trackInfoSection
                         versionSelectorBanner
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 30)
                     .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 8)
                     
                     // Prominent Timestamp Badge directly under spinning disk and track info
                     prominentTimestampBadge
-                        .padding(.horizontal, 24)
+                        .padding(.horizontal, 30)
                         .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 12)
                     
-                    // Feature 5: Scrubber Bar stretching across the full screen width from beginning to end
+                    // Feature 5: Scrubber Bar - ample side padding to prevent clipping at left/right edges
                     ScrubberBar(
                         currentTime: playerManager.currentTime,
                         duration: playerManager.duration,
@@ -77,23 +77,23 @@ public struct FullScreenPlayerView: View {
                             playerManager.seek(to: newTime)
                         }
                     )
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 32)
                     .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 14)
                     
                     // Feature 5: Transport Controls (ff5, back 5, skip, play/pause)
                     playbackControls
-                        .padding(.horizontal, 24)
+                        .padding(.horizontal, 30)
                         .padding(.vertical, 6)
                         .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 10)
                     
-                    // Bottom Utility Bar: padded safely above the rounded bottom corners and home bar
+                    // Bottom Utility Bar: safely inset from rounded corners and home indicator
                     bottomUtilityBar
-                        .padding(.horizontal, 26)
-                        .padding(.bottom, max(safeBottom, 20) + 10)
+                        .padding(.horizontal, 32)
+                        .padding(.bottom, max(safeBottom, 24) + 12)
                         .frame(maxWidth: .infinity)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
