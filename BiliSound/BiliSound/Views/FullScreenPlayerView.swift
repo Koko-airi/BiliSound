@@ -33,8 +33,8 @@ public struct FullScreenPlayerView: View {
                 VStack(spacing: 0) {
                     // Top Header Bar: positioned safely below the Dynamic Island / Notch and status bar icons
                     topBar
-                        .padding(.top, max(safeTop, 16) + 8)
-                        .padding(.horizontal, 20)
+                        .padding(.top, max(safeTop, 20) + 12)
+                        .padding(.horizontal, 22)
                         .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 6)
@@ -67,7 +67,7 @@ public struct FullScreenPlayerView: View {
                         .padding(.horizontal, 24)
                         .frame(maxWidth: .infinity)
                     
-                    Spacer(minLength: 10)
+                    Spacer(minLength: 12)
                     
                     // Feature 5: Scrubber Bar stretching across the full screen width from beginning to end
                     ScrubberBar(
@@ -80,19 +80,20 @@ public struct FullScreenPlayerView: View {
                     .padding(.horizontal, 24)
                     .frame(maxWidth: .infinity)
                     
-                    Spacer(minLength: 10)
+                    Spacer(minLength: 14)
                     
                     // Feature 5: Transport Controls (ff5, back 5, skip, play/pause)
                     playbackControls
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 6)
                         .frame(maxWidth: .infinity)
                     
-                    Spacer(minLength: 8)
+                    Spacer(minLength: 10)
                     
                     // Bottom Utility Bar: padded safely above the rounded bottom corners and home bar
                     bottomUtilityBar
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, max(safeBottom, 16) + 6)
+                        .padding(.horizontal, 26)
+                        .padding(.bottom, max(safeBottom, 20) + 10)
                         .frame(maxWidth: .infinity)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -155,28 +156,18 @@ public struct FullScreenPlayerView: View {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.white.opacity(0.8))
-                    .frame(width: 36, height: 36)
-                    .background(Color.white.opacity(0.1))
+                    .frame(width: 40, height: 40)
+                    .background(Color.white.opacity(0.12))
                     .clipShape(Circle())
             }
             
             Spacer()
             
-            VStack(spacing: 2) {
-                Text(playerManager.currentPlaylist?.name.uppercased() ?? "BILIBILI PLAYLIST")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.white.opacity(0.6))
-                    .tracking(1)
-                
-                // Feature 1: Pure Audio Indicator
-                HStack(spacing: 4) {
-                    Image(systemName: "headphones")
-                        .font(.system(size: 10))
-                    Text("Music Mode • Sound Only")
-                        .font(.system(size: 11, weight: .medium))
-                }
-                .foregroundColor(.green.opacity(0.9))
-            }
+            Text(playerManager.currentPlaylist?.name.uppercased() ?? "BILIBILI PLAYLIST")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.white.opacity(0.65))
+                .tracking(1.2)
+                .lineLimit(1)
             
             Spacer()
             
@@ -184,8 +175,8 @@ public struct FullScreenPlayerView: View {
                 Image(systemName: "clock.arrow.circlepath")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.white.opacity(0.8))
-                    .frame(width: 36, height: 36)
-                    .background(Color.white.opacity(0.1))
+                    .frame(width: 40, height: 40)
+                    .background(Color.white.opacity(0.12))
                     .clipShape(Circle())
             }
         }
