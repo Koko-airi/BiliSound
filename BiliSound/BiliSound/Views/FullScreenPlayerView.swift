@@ -31,10 +31,10 @@ public struct FullScreenPlayerView: View {
                     .frame(width: screenWidth, height: screenHeight)
                 
                 VStack(spacing: 0) {
-                    // Top Header Bar: comfortably below Dynamic Island / Notch and status bar icons
+                    // Top Header Bar: comfortably under notch with dismiss and history buttons moved closer to center
                     topBar
-                        .padding(.top, max(safeTop, 44) + 16)
-                        .padding(.horizontal, 28)
+                        .padding(.top, max(safeTop, 47) + 4)
+                        .padding(.horizontal, 48)
                         .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 6)
@@ -57,19 +57,19 @@ public struct FullScreenPlayerView: View {
                         trackInfoSection
                         versionSelectorBanner
                     }
-                    .padding(.horizontal, 30)
+                    .padding(.horizontal, 32)
                     .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 8)
                     
                     // Prominent Timestamp Badge directly under spinning disk and track info
                     prominentTimestampBadge
-                        .padding(.horizontal, 30)
+                        .padding(.horizontal, 32)
                         .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 12)
                     
-                    // Feature 5: Scrubber Bar - ample side padding to prevent clipping at left/right edges
+                    // Feature 5: Scrubber Bar - ample side padding to prevent timestamps clipping the edge
                     ScrubberBar(
                         currentTime: playerManager.currentTime,
                         duration: playerManager.duration,
@@ -77,14 +77,14 @@ public struct FullScreenPlayerView: View {
                             playerManager.seek(to: newTime)
                         }
                     )
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, 40)
                     .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 14)
                     
                     // Feature 5: Transport Controls (ff5, back 5, skip, play/pause)
                     playbackControls
-                        .padding(.horizontal, 30)
+                        .padding(.horizontal, 34)
                         .padding(.vertical, 6)
                         .frame(maxWidth: .infinity)
                     
@@ -92,8 +92,8 @@ public struct FullScreenPlayerView: View {
                     
                     // Bottom Utility Bar: safely inset from rounded corners and home indicator
                     bottomUtilityBar
-                        .padding(.horizontal, 32)
-                        .padding(.bottom, max(safeBottom, 24) + 12)
+                        .padding(.horizontal, 38)
+                        .padding(.bottom, max(safeBottom, 20) + 8)
                         .frame(maxWidth: .infinity)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

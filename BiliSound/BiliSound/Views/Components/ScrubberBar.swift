@@ -108,17 +108,18 @@ public struct ScrubberBar: View {
                 
                 Spacer()
                 
-                HStack(spacing: 6) {
+                HStack(spacing: 5) {
                     Text(formatTime(effectiveDuration))
                         .font(.footnote.monospacedDigit().weight(.medium))
                         .foregroundColor(.white.opacity(0.75))
                     
                     let remaining = max(0, effectiveDuration - displayTime)
                     Text("(-\(formatTime(remaining)))")
-                        .font(.caption.monospacedDigit())
+                        .font(.caption2.monospacedDigit())
                         .foregroundColor(.white.opacity(0.5))
                 }
             }
+            .padding(.horizontal, 4)
         }
     }
     
