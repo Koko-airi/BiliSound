@@ -47,11 +47,10 @@ public struct ScrubberBar: View {
                 // Using ZStack(alignment: .leading) with offset instead of .position()
                 // to completely eliminate SwiftUI AnimatablePair timeline collision assertions.
                 ZStack(alignment: .leading) {
-                    // Full background track
+                    // Full background track spanning across the entire bar width
                     Capsule()
                         .fill(Color.white.opacity(0.2))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 4)
+                        .frame(width: totalWidth, height: 4)
                     
                     // Active progress track from beginning (0) to thumb knob center
                     Capsule()

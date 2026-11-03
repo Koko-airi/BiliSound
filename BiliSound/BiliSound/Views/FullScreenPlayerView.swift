@@ -23,18 +23,20 @@ public struct FullScreenPlayerView: View {
             let diskSize: CGFloat = min(screenWidth - 80, screenHeight > 750 ? 250 : 190)
             
             ZStack {
-                // Background Dynamic Blurred Art
+                // Background Dynamic Blurred Art spanning the full window
                 backgroundBlur
+                    .frame(width: screenWidth, height: screenHeight)
                 
                 VStack(spacing: 0) {
-                    // Top Header Bar
+                    // Top Header Bar spanning full width
                     topBar
                         .padding(.top, 16)
                         .padding(.horizontal, 20)
+                        .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 8)
                     
-                    // Animated Centerpiece Artwork (The Spinning Disk)
+                    // Animated Centerpiece Artwork (The Spinning Disk) centered
                     if let song = playerManager.currentSong {
                         AnimatedArtworkView(
                             imageUrlString: playerManager.currentVersion?.picUrl ?? song.artworkUrl,
@@ -42,26 +44,29 @@ public struct FullScreenPlayerView: View {
                             size: diskSize
                         )
                         .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity)
                     }
                     
                     Spacer(minLength: 8)
                     
-                    // Track Info & Feature 4 Version Picker
+                    // Track Info & Feature 4 Version Picker spanning full width
                     VStack(spacing: 6) {
                         trackInfoSection
                         versionSelectorBanner
                     }
                     .padding(.horizontal, 24)
+                    .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 10)
                     
                     // Prominent Timestamp Badge directly under spinning disk and track info
                     prominentTimestampBadge
                         .padding(.horizontal, 24)
+                        .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 12)
                     
-                    // Feature 5: Scrubber Bar (full timeline from beginning of song to end of song)
+                    // Feature 5: Scrubber Bar stretching across the full screen width from beginning to end
                     ScrubberBar(
                         currentTime: playerManager.currentTime,
                         duration: playerManager.duration,
@@ -70,12 +75,14 @@ public struct FullScreenPlayerView: View {
                         }
                     )
                     .padding(.horizontal, 24)
+                    .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 12)
                     
                     // Feature 5: Transport Controls (ff5, back 5, skip, play/pause)
                     playbackControls
                         .padding(.horizontal, 20)
+                        .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 12)
                     
@@ -83,9 +90,13 @@ public struct FullScreenPlayerView: View {
                     bottomUtilityBar
                         .padding(.horizontal, 24)
                         .padding(.bottom, 16)
+                        .frame(maxWidth: .infinity)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .frame(width: screenWidth, height: screenHeight)
         }
+        .ignoresSafeArea()
         .sheet(isPresented: $showingVersionSheet) {
             if let song = playerManager.currentSong, let playlist = playerManager.currentPlaylist {
                 VersionManagerSheet(
