@@ -46,13 +46,9 @@ public struct FullScreenPlayerView: View {
                 }
                 .padding(.horizontal, 24)
                 
-                Spacer(minLength: 12)
+                Spacer(minLength: 16)
                 
-                // Bug 3: Formatted Track Time Labels (current time / total duration)
-                trackTimeLabels
-                    .padding(.horizontal, 24)
-                
-                // Feature 5 & Bug 4: Scrubber Bar
+                // Feature 5 & Bug 4: Scrubber Bar with live "current min:sec / total min:sec" labels
                 ScrubberBar(
                     currentTime: playerManager.currentTime,
                     duration: playerManager.duration,
