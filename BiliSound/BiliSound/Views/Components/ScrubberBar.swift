@@ -36,7 +36,8 @@ public struct ScrubberBar: View {
             GeometryReader { geo in
                 let totalWidth = max(geo.size.width, 1.0)
                 let totalHeight = geo.size.height
-                let thumbDiameter: CGFloat = isDragging ? 18 : 12
+                let thumbDiameter: CGFloat = 14
+                let trackHeight: CGFloat = 4
                 
                 // Knob center smoothly travels between (thumbDiameter/2) and (totalWidth - thumbDiameter/2)
                 // This guarantees the knob is 100% visible inside container bounds at ANY playback second (0s to end).
@@ -45,10 +46,10 @@ public struct ScrubberBar: View {
                 let activeTrackWidth = max(0, min(thumbCenterX, totalWidth))
                 
                 ZStack(alignment: .leading) {
-                    // Inactive background track
+                    // Inactive background track - constant height to avoid AnimatablePair timeline collision
                     Capsule()
                         .fill(Color.white.opacity(0.2))
-                        .frame(width: totalWidth, height: isDragging ? 6 : 4)
+                        .frame(width: totalWidth, height: trackHeight)
                         .position(x: totalWidth / 2, y: totalHeight / 2)
                     
                     // Active filled progress track
@@ -60,7 +61,7 @@ public struct ScrubberBar: View {
                                 endPoint: .trailing
                             )
                         )
-                        .frame(width: activeTrackWidth, height: isDragging ? 6 : 4)
+                        .frame(width: activeTrackWidth, height: trackHeight)
                         .position(x: activeTrackWidth / 2, y: totalHeight / 2)
                     
                     // Scrubber thumb knob - always centered at thumbCenterX, strictly within visible screen
@@ -68,24 +69,34 @@ public struct ScrubberBar: View {
                         .fill(Color.white)
                         .shadow(color: .black.opacity(0.35), radius: 3, x: 0, y: 1)
                         .frame(width: thumbDiameter, height: thumbDiameter)
+                        .scaleEffect(isDragging ? 1.25 : 1.0)
                         .position(x: thumbCenterX, y: totalHeight / 2)
                 }
+                .transaction { $0.animation = nil }
                 .frame(width: totalWidth, height: totalHeight, alignment: .leading)
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
                             guard totalWidth > 0 else { return }
-                            isDragging = true
-                            let percent = min(max(value.location.x / totalWidth, 0.0), 1.0)
-                            dragTime = percent * max(0, duration)
+                            var transaction = Transaction()
+                            transaction.disablesAnimations = true
+                            withTransaction(transaction) {
+                                isDragging = true
+                                let percent = min(max(value.location.x / totalWidth, 0.0), 1.0)
+                                dragTime = percent * max(0, duration)
+                            }
                         }
                         .onEnded { value in
                             guard totalWidth > 0 else { return }
                             let percent = min(max(value.location.x / totalWidth, 0.0), 1.0)
                             let targetTime = percent * max(0, duration)
                             onSeek(targetTime)
-                            isDragging = false
+                            var transaction = Transaction()
+                            transaction.disablesAnimations = true
+                            withTransaction(transaction) {
+                                isDragging = false
+                            }
                         }
                 )
             }
