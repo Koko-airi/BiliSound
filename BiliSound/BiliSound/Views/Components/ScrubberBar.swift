@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Feature 5: Interactive Scrubber with bounded track, centered thumb positioning,
+/// Feature 5: Interactive Scrubber with leading alignment, non-animating gesture tracking,
 /// and live formatted "current min:sec / total min:sec" indicators.
 public struct ScrubberBar: View {
     let currentTime: TimeInterval
@@ -20,39 +20,40 @@ public struct ScrubberBar: View {
         self.onSeek = onSeek
     }
     
+    private var effectiveDuration: TimeInterval {
+        duration > 0 && !duration.isNaN ? duration : 240.0
+    }
+    
     private var displayTime: TimeInterval {
         isDragging ? dragTime : currentTime
     }
     
     /// Progress ratio strictly clamped between 0.0 and 1.0
     private var progressRatio: Double {
-        guard duration > 0, !duration.isNaN else { return 0.0 }
-        let rawRatio = displayTime / duration
+        guard effectiveDuration > 0 else { return 0.0 }
+        let rawRatio = displayTime / effectiveDuration
         return min(max(rawRatio, 0.0), 1.0)
     }
     
     public var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             GeometryReader { geo in
                 let totalWidth = max(geo.size.width, 1.0)
-                let totalHeight = geo.size.height
                 let thumbDiameter: CGFloat = 14
-                let trackHeight: CGFloat = 4
+                let usableTravel = max(0, totalWidth - thumbDiameter)
+                let thumbOffset = CGFloat(progressRatio) * usableTravel
+                let activeTrackWidth = (thumbDiameter / 2) + thumbOffset
                 
-                // Knob center smoothly travels between (thumbDiameter/2) and (totalWidth - thumbDiameter/2)
-                // This guarantees the knob is 100% visible inside container bounds at ANY playback second (0s to end).
-                let thumbTravelDistance = max(0, totalWidth - thumbDiameter)
-                let thumbCenterX = (thumbDiameter / 2) + (CGFloat(progressRatio) * thumbTravelDistance)
-                let activeTrackWidth = max(0, min(thumbCenterX, totalWidth))
-                
+                // Using ZStack(alignment: .leading) with offset instead of .position()
+                // to completely eliminate SwiftUI AnimatablePair timeline collision assertions.
                 ZStack(alignment: .leading) {
-                    // Inactive background track - constant height to avoid AnimatablePair timeline collision
+                    // Full background track
                     Capsule()
                         .fill(Color.white.opacity(0.2))
-                        .frame(width: totalWidth, height: trackHeight)
-                        .position(x: totalWidth / 2, y: totalHeight / 2)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 4)
                     
-                    // Active filled progress track
+                    // Active progress track from beginning (0) to thumb knob center
                     Capsule()
                         .fill(
                             LinearGradient(
@@ -61,19 +62,17 @@ public struct ScrubberBar: View {
                                 endPoint: .trailing
                             )
                         )
-                        .frame(width: activeTrackWidth, height: trackHeight)
-                        .position(x: activeTrackWidth / 2, y: totalHeight / 2)
+                        .frame(width: max(thumbDiameter / 2, min(activeTrackWidth, totalWidth)), height: 4)
                     
-                    // Scrubber thumb knob - always centered at thumbCenterX, strictly within visible screen
+                    // Scrubber thumb knob - smoothly moves from leading edge (0) to trailing edge (totalWidth - thumbDiameter)
                     Circle()
                         .fill(Color.white)
                         .shadow(color: .black.opacity(0.35), radius: 3, x: 0, y: 1)
                         .frame(width: thumbDiameter, height: thumbDiameter)
                         .scaleEffect(isDragging ? 1.25 : 1.0)
-                        .position(x: thumbCenterX, y: totalHeight / 2)
+                        .offset(x: thumbOffset)
                 }
-                .transaction { $0.animation = nil }
-                .frame(width: totalWidth, height: totalHeight, alignment: .leading)
+                .frame(width: totalWidth, height: geo.size.height, alignment: .leading)
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
@@ -84,13 +83,13 @@ public struct ScrubberBar: View {
                             withTransaction(transaction) {
                                 isDragging = true
                                 let percent = min(max(value.location.x / totalWidth, 0.0), 1.0)
-                                dragTime = percent * max(0, duration)
+                                dragTime = percent * effectiveDuration
                             }
                         }
                         .onEnded { value in
                             guard totalWidth > 0 else { return }
                             let percent = min(max(value.location.x / totalWidth, 0.0), 1.0)
-                            let targetTime = percent * max(0, duration)
+                            let targetTime = percent * effectiveDuration
                             onSeek(targetTime)
                             var transaction = Transaction()
                             transaction.disablesAnimations = true
@@ -100,28 +99,26 @@ public struct ScrubberBar: View {
                         }
                 )
             }
-            .frame(height: 24)
+            .frame(height: 20)
             
-            // Time Labels: "current min:sec / total min:sec" and remaining "-min:sec"
+            // Sub-bar time labels: "current min:sec" on left, "total min:sec" & remaining on right
             HStack {
-                HStack(spacing: 4) {
-                    Text(formatTime(displayTime))
-                        .font(.subheadline.monospacedDigit().weight(.semibold))
-                        .foregroundColor(.white)
-                    Text("/")
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.4))
-                    Text(formatTime(duration))
-                        .font(.subheadline.monospacedDigit().weight(.medium))
-                        .foregroundColor(.white.opacity(0.75))
-                }
+                Text(formatTime(displayTime))
+                    .font(.footnote.monospacedDigit().weight(.semibold))
+                    .foregroundColor(.white)
                 
                 Spacer()
                 
-                let remaining = max(0, duration - displayTime)
-                Text("-" + formatTime(remaining))
-                    .font(.caption.monospacedDigit())
-                    .foregroundColor(.white.opacity(0.6))
+                HStack(spacing: 6) {
+                    Text(formatTime(effectiveDuration))
+                        .font(.footnote.monospacedDigit().weight(.medium))
+                        .foregroundColor(.white.opacity(0.75))
+                    
+                    let remaining = max(0, effectiveDuration - displayTime)
+                    Text("(-\(formatTime(remaining)))")
+                        .font(.caption.monospacedDigit())
+                        .foregroundColor(.white.opacity(0.5))
+                }
             }
         }
     }

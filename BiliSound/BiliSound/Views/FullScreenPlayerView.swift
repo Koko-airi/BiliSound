@@ -15,61 +15,75 @@ public struct FullScreenPlayerView: View {
     }
     
     public var body: some View {
-        ZStack {
-            // Background Dynamic Blurred Art
-            backgroundBlur
+        GeometryReader { outerGeo in
+            let screenHeight = outerGeo.size.height
+            let screenWidth = outerGeo.size.width
+            // Adaptively scale rotating disk so all player elements (timestamps, scrubber, controls)
+            // fit comfortably without clipping on vertical/portrait screens of any device size.
+            let diskSize: CGFloat = min(screenWidth - 80, screenHeight > 750 ? 250 : 190)
             
-            VStack(spacing: 0) {
-                // Top Header Bar
-                topBar
-                    .padding(.top, 16)
-                    .padding(.horizontal, 20)
+            ZStack {
+                // Background Dynamic Blurred Art
+                backgroundBlur
                 
-                Spacer(minLength: 12)
-                
-                // Animated Centerpiece Artwork
-                if let song = playerManager.currentSong {
-                    AnimatedArtworkView(
-                        imageUrlString: playerManager.currentVersion?.picUrl ?? song.artworkUrl,
-                        isPlaying: playerManager.isPlaying,
-                        size: min(UIScreen.main.bounds.width - 80, 300)
-                    )
-                    .padding(.vertical, 10)
-                }
-                
-                Spacer(minLength: 12)
-                
-                // Track Info & Feature 4 Version Picker
-                VStack(spacing: 8) {
-                    trackInfoSection
-                    versionSelectorBanner
-                }
-                .padding(.horizontal, 24)
-                
-                Spacer(minLength: 16)
-                
-                // Feature 5 & Bug 4: Scrubber Bar with live "current min:sec / total min:sec" labels
-                ScrubberBar(
-                    currentTime: playerManager.currentTime,
-                    duration: playerManager.duration,
-                    onSeek: { newTime in
-                        playerManager.seek(to: newTime)
+                VStack(spacing: 0) {
+                    // Top Header Bar
+                    topBar
+                        .padding(.top, 16)
+                        .padding(.horizontal, 20)
+                    
+                    Spacer(minLength: 8)
+                    
+                    // Animated Centerpiece Artwork (The Spinning Disk)
+                    if let song = playerManager.currentSong {
+                        AnimatedArtworkView(
+                            imageUrlString: playerManager.currentVersion?.picUrl ?? song.artworkUrl,
+                            isPlaying: playerManager.isPlaying,
+                            size: diskSize
+                        )
+                        .padding(.vertical, 6)
                     }
-                )
-                .padding(.horizontal, 24)
-                
-                Spacer(minLength: 16)
-                
-                // Feature 5: Transport Controls (ff5, back 5, skip, play/pause)
-                playbackControls
-                    .padding(.horizontal, 20)
-                
-                Spacer(minLength: 16)
-                
-                // Bottom Utility Bar (Audio Quality, Speed, Session Info)
-                bottomUtilityBar
+                    
+                    Spacer(minLength: 8)
+                    
+                    // Track Info & Feature 4 Version Picker
+                    VStack(spacing: 6) {
+                        trackInfoSection
+                        versionSelectorBanner
+                    }
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 20)
+                    
+                    Spacer(minLength: 10)
+                    
+                    // Prominent Timestamp Badge directly under spinning disk and track info
+                    prominentTimestampBadge
+                        .padding(.horizontal, 24)
+                    
+                    Spacer(minLength: 12)
+                    
+                    // Feature 5: Scrubber Bar (full timeline from beginning of song to end of song)
+                    ScrubberBar(
+                        currentTime: playerManager.currentTime,
+                        duration: playerManager.duration,
+                        onSeek: { newTime in
+                            playerManager.seek(to: newTime)
+                        }
+                    )
+                    .padding(.horizontal, 24)
+                    
+                    Spacer(minLength: 12)
+                    
+                    // Feature 5: Transport Controls (ff5, back 5, skip, play/pause)
+                    playbackControls
+                        .padding(.horizontal, 20)
+                    
+                    Spacer(minLength: 12)
+                    
+                    // Bottom Utility Bar (Audio Quality, Speed, Session Info)
+                    bottomUtilityBar
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 16)
+                }
             }
         }
         .sheet(isPresented: $showingVersionSheet) {
@@ -178,31 +192,30 @@ public struct FullScreenPlayerView: View {
         }
     }
     
-    // Bug 3: Formatted track time labels (current time / total duration)
-    private var trackTimeLabels: some View {
-        HStack {
-            HStack(spacing: 5) {
-                Image(systemName: "clock")
-                    .font(.caption2)
-                    .foregroundColor(.white.opacity(0.6))
-                Text(formatTime(playerManager.currentTime))
-                    .font(.subheadline.monospacedDigit().weight(.semibold))
-                    .foregroundColor(.white)
-                Text("/")
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.4))
-                Text(formatTime(playerManager.duration))
-                    .font(.subheadline.monospacedDigit().weight(.semibold))
-                    .foregroundColor(.white.opacity(0.75))
-            }
+    // Prominent Timestamp Badge displayed directly on the spinning disk page
+    private var prominentTimestampBadge: some View {
+        let totalDuration = playerManager.duration > 0 && !playerManager.duration.isNaN ? playerManager.duration : 240.0
+        return HStack(spacing: 6) {
+            Image(systemName: "clock.fill")
+                .font(.caption2)
+                .foregroundColor(.pink)
             
-            Spacer()
+            Text(formatTime(playerManager.currentTime))
+                .font(.system(.body, design: .monospaced).weight(.bold))
+                .foregroundColor(.white)
             
-            let remaining = max(0, playerManager.duration - playerManager.currentTime)
-            Text("-\(formatTime(remaining))")
-                .font(.caption.monospacedDigit())
-                .foregroundColor(.white.opacity(0.6))
+            Text("/")
+                .font(.system(.body, design: .monospaced))
+                .foregroundColor(.white.opacity(0.35))
+            
+            Text(formatTime(totalDuration))
+                .font(.system(.body, design: .monospaced).weight(.semibold))
+                .foregroundColor(.white.opacity(0.85))
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .background(Color.white.opacity(0.12))
+        .clipShape(Capsule())
     }
     
     private func formatTime(_ time: TimeInterval) -> String {
