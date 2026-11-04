@@ -4,152 +4,163 @@ import SwiftUI
 @MainActor
 public struct PlaylistDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @Binding var playlist: Playlist
-    var playlists: Binding<[Playlist]>?
+    let playlistId: UUID
     @ObservedObject var playerManager: AudioPlayerManager
     @ObservedObject private var storageManager = PlaylistStorageManager.shared
     
     @State private var selectedSongForVersionManager: Song?
     @State private var showingAddSongSheet: Bool = false
     @State private var showingSessionHistory: Bool = false
-    @State private var showingPlaylistSettings: Bool = false
     
+    public init(
+        playlistId: UUID,
+        playerManager: AudioPlayerManager = .shared
+    ) {
+        self.playlistId = playlistId
+        self.playerManager = playerManager
+    }
+    
+    // Backwards-compatible init accepting Binding
     public init(
         playlist: Binding<Playlist>,
         playlists: Binding<[Playlist]>? = nil,
         playerManager: AudioPlayerManager = .shared
     ) {
-        self._playlist = playlist
-        self.playlists = playlists
+        self.playlistId = playlist.wrappedValue.id
         self.playerManager = playerManager
     }
     
+    private var playlist: Playlist? {
+        storageManager.playlists.first(where: { $0.id == playlistId })
+    }
+    
+    private var playlistBinding: Binding<Playlist>? {
+        guard let index = storageManager.playlists.firstIndex(where: { $0.id == playlistId }) else {
+            return nil
+        }
+        return $storageManager.playlists[index]
+    }
+    
     public var body: some View {
-        List {
-            // Header Section
-            headerSection
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-            
-            // Feature 2 & 3: Playback Mode Action Bar
-            actionButtonsSection
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-            
-            // Feature 3: Live Session Status Banner
-            sessionStatusBanner
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-            
-            // Songs List
-            Section(header: Text("Songs (\(playlist.songs.count))")) {
-                if playlist.songs.isEmpty {
-                    VStack(spacing: 8) {
-                        Image(systemName: "music.note.list")
-                            .font(.largeTitle)
-                            .foregroundColor(.secondary)
-                        Text("No songs in this playlist yet.")
-                            .foregroundColor(.secondary)
-                        Button("Add Song from Bilibili") {
-                            showingAddSongSheet = true
+        Group {
+            if let playlist = playlist, let $boundPlaylist = playlistBinding {
+                List {
+                    // Header Section
+                    headerSection(playlist)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                    
+                    // Feature 2 & 3: Playback Mode Action Bar
+                    actionButtonsSection(playlist)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                    
+                    // Feature 3: Live Session Status Banner
+                    sessionStatusBanner(playlist)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                    
+                    // Songs List
+                    Section(header: Text("Songs (\(playlist.songs.count))")) {
+                        if playlist.songs.isEmpty {
+                            VStack(spacing: 8) {
+                                Image(systemName: "music.note.list")
+                                    .font(.largeTitle)
+                                    .foregroundColor(.secondary)
+                                Text("No songs in this playlist yet.")
+                                    .foregroundColor(.secondary)
+                                Button("Add Song from Bilibili") {
+                                    showingAddSongSheet = true
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 24)
+                        } else {
+                            ForEach(playlist.songs) { song in
+                                let isCurrent = playerManager.currentSong?.id == song.id
+                                SongRowView(
+                                    song: song,
+                                    isPlayingCurrent: isCurrent && playerManager.isPlaying,
+                                    activeVersionName: isCurrent ? playerManager.currentVersion?.name : nil,
+                                    onSelect: {
+                                        playerManager.play(
+                                            song: song,
+                                            in: playlist,
+                                            resetSession: playerManager.currentPlaylist?.id != playlist.id
+                                        )
+                                    },
+                                    onManageVersions: {
+                                        selectedSongForVersionManager = song
+                                    }
+                                )
+                            }
+                            .onDelete { indexSet in
+                                if let index = storageManager.playlists.firstIndex(where: { $0.id == playlistId }) {
+                                    storageManager.playlists[index].songs.remove(atOffsets: indexSet)
+                                }
+                            }
                         }
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-                } else {
-                    ForEach(playlist.songs) { song in
-                        let isCurrent = playerManager.currentSong?.id == song.id
-                        SongRowView(
-                            song: song,
-                            isPlayingCurrent: isCurrent && playerManager.isPlaying,
-                            activeVersionName: isCurrent ? playerManager.currentVersion?.name : nil,
-                            onSelect: {
-                                // Bug 1: Fresh session if switching playlists, then picks random version
-                                playerManager.play(
-                                    song: song,
-                                    in: playlist,
-                                    resetSession: playerManager.currentPlaylist?.id != playlist.id
-                                )
-                            },
-                            onManageVersions: {
-                                selectedSongForVersionManager = song
+                    
+                    // Bottom small grey text center-aligned: "playlist settings"
+                    Section {
+                        NavigationLink(destination: PlaylistSettingsView(
+                            playlistName: playlist.name,
+                            onDelete: {
+                                storageManager.removePlaylist(id: playlistId)
+                                dismiss()
                             }
+                        )) {
+                            Text("playlist settings")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        }
+                    }
+                    .listRowBackground(Color.clear)
+                }
+                .listStyle(.insetGrouped)
+                .safeAreaPadding(.bottom, playerManager.currentSong != nil ? 80 : 0)
+                .navigationTitle(playlist.name)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: { showingAddSongSheet = true }) {
+                            Image(systemName: "plus")
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(action: { showingSessionHistory = true }) {
+                            Image(systemName: "clock.arrow.circlepath")
+                        }
+                    }
+                }
+                .sheet(item: $selectedSongForVersionManager) { song in
+                    if let pIndex = storageManager.playlists.firstIndex(where: { $0.id == playlistId }),
+                       let songIndex = storageManager.playlists[pIndex].songs.firstIndex(where: { $0.id == song.id }) {
+                        VersionManagerSheet(
+                            song: $storageManager.playlists[pIndex].songs[songIndex],
+                            playlist: storageManager.playlists[pIndex],
+                            playerManager: playerManager
                         )
                     }
-                    .onDelete { indexSet in
-                        playlist.songs.remove(atOffsets: indexSet)
-                        // Trigger persistence for updated songs
-                        if let index = storageManager.playlists.firstIndex(where: { $0.id == playlist.id }) {
-                            storageManager.playlists[index] = playlist
-                        }
-                    }
                 }
+                .sheet(isPresented: $showingAddSongSheet) {
+                    AddSongSheet(playlist: $boundPlaylist)
+                }
+                .sheet(isPresented: $showingSessionHistory) {
+                    SessionHistoryView(playerManager: playerManager)
+                }
+            } else {
+                Text("Playlist not found")
+                    .foregroundColor(.secondary)
             }
-            
-            // Bottom small grey text center-aligned: "playlist settings"
-            Section {
-                NavigationLink(destination: PlaylistSettingsView(
-                    playlistName: playlist.name,
-                    onDelete: {
-                        storageManager.removePlaylist(id: playlist.id)
-                        dismiss()
-                    }
-                )) {
-                    Text("playlist settings")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-            }
-            .listRowBackground(Color.clear)
-        }
-        .listStyle(.insetGrouped)
-        // Bug 2: Bottom safe area padding prevents mini bar from occluding the last list items
-        .safeAreaPadding(.bottom, playerManager.currentSong != nil ? 80 : 0)
-        .navigationTitle(playlist.name)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: { showingAddSongSheet = true }) {
-                    Image(systemName: "plus")
-                }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(action: { showingSessionHistory = true }) {
-                    Image(systemName: "clock.arrow.circlepath")
-                }
-            }
-        }
-        .sheet(item: $selectedSongForVersionManager) { song in
-            if let songIndex = playlist.songs.firstIndex(where: { $0.id == song.id }) {
-                VersionManagerSheet(
-                    song: $playlist.songs[songIndex],
-                    playlist: playlist,
-                    playerManager: playerManager
-                )
-                .onDisappear {
-                    if let index = storageManager.playlists.firstIndex(where: { $0.id == playlist.id }) {
-                        storageManager.playlists[index] = playlist
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $showingAddSongSheet) {
-            AddSongSheet(playlist: $playlist)
-                .onDisappear {
-                    if let index = storageManager.playlists.firstIndex(where: { $0.id == playlist.id }) {
-                        storageManager.playlists[index] = playlist
-                    }
-                }
-        }
-        .sheet(isPresented: $showingSessionHistory) {
-            SessionHistoryView(playerManager: playerManager)
         }
     }
     
     // MARK: - Subviews
     
-    private var headerSection: some View {
+    private func headerSection(_ playlist: Playlist) -> some View {
         VStack(spacing: 12) {
             ZStack {
                 if let coverStr = playlist.coverUrl, let url = URL(string: coverStr) {
@@ -213,7 +224,7 @@ public struct PlaylistDetailView: View {
     }
     
     // Feature 2: Play consecutive & Shuffle actions
-    private var actionButtonsSection: some View {
+    private func actionButtonsSection(_ playlist: Playlist) -> some View {
         HStack(spacing: 12) {
             // Feature 2 & Bug 1: Consecutive Normal Play with fresh, isolated session
             Button(action: {
@@ -257,7 +268,7 @@ public struct PlaylistDetailView: View {
     }
     
     // Feature 3 & Bug 1: Session progress badge
-    private var sessionStatusBanner: some View {
+    private func sessionStatusBanner(_ playlist: Playlist) -> some View {
         Button(action: { showingSessionHistory = true }) {
             HStack(spacing: 8) {
                 Image(systemName: "shield.checkerboard")

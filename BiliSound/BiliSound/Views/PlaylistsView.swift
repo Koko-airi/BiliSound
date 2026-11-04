@@ -22,8 +22,8 @@ public struct PlaylistsView: View {
         NavigationStack {
             List {
                 Section(header: Text("Playlists")) {
-                    ForEach($playlists) { $playlist in
-                        NavigationLink(destination: PlaylistDetailView(playlist: $playlist, playlists: $playlists, playerManager: playerManager)) {
+                    ForEach(playlists) { playlist in
+                        NavigationLink(destination: PlaylistDetailView(playlistId: playlist.id, playerManager: playerManager)) {
                             playlistRow(playlist)
                         }
                     }
