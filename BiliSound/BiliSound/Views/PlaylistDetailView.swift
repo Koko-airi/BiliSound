@@ -86,39 +86,28 @@ public struct PlaylistDetailView: View {
                 }
             }
             
-            // Link to dedicated Playlist Settings page
+            // Bottom small grey text center-aligned: "playlist settings"
             Section {
-                Button(action: {
-                    showingPlaylistSettings = true
-                }) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "gearshape")
-                            .foregroundColor(.pink)
-                        Text("Playlist Settings")
-                            .font(.body.weight(.medium))
-                            .foregroundColor(.primary)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                NavigationLink(destination: PlaylistSettingsView(
+                    playlistName: playlist.name,
+                    onDelete: {
+                        storageManager.removePlaylist(id: playlist.id)
+                        dismiss()
                     }
-                    .padding(.vertical, 2)
+                )) {
+                    Text("playlist settings")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
+            .listRowBackground(Color.clear)
         }
         .listStyle(.insetGrouped)
         // Bug 2: Bottom safe area padding prevents mini bar from occluding the last list items
         .safeAreaPadding(.bottom, playerManager.currentSong != nil ? 80 : 0)
         .navigationTitle(playlist.name)
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(isPresented: $showingPlaylistSettings) {
-            PlaylistSettingsView(
-                playlistId: playlist.id,
-                onPlaylistDeleted: {
-                    dismiss()
-                }
-            )
-        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(action: { showingAddSongSheet = true }) {
