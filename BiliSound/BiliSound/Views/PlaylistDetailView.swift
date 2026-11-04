@@ -113,7 +113,7 @@ public struct PlaylistDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $showingPlaylistSettings) {
             PlaylistSettingsView(
-                playlist: $playlist,
+                playlistId: playlist.id,
                 onPlaylistDeleted: {
                     dismiss()
                 }
