@@ -102,7 +102,7 @@ public struct PlaylistDetailView: View {
                         }
                     }
                     
-                    // Bottom small grey text center-aligned: "playlist settings" (arrow removed)
+                    // Bottom small grey text center-aligned: "playlist settings" (arrow removed, tight padding)
                     Section {
                         ZStack {
                             NavigationLink(destination: PlaylistSettingsView(
@@ -122,8 +122,10 @@ public struct PlaylistDetailView: View {
                                 .foregroundColor(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .center)
                         }
+                        .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
                     }
                     .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
                 .listStyle(.insetGrouped)
                 .safeAreaPadding(.bottom, playerManager.currentSong != nil ? 80 : 0)
