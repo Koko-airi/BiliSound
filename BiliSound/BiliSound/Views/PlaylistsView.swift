@@ -5,8 +5,11 @@ import SwiftUI
 public struct PlaylistsView: View {
     @Binding var playlists: [Playlist]
     @ObservedObject var playerManager: AudioPlayerManager
+    @ObservedObject private var accountManager = BiliAccountManager.shared
     
     @State private var showingCreatePlaylist: Bool = false
+    @State private var showingImportSheet: Bool = false
+    @State private var showingLoginSheet: Bool = false
     @State private var newPlaylistName: String = ""
     @State private var newPlaylistDesc: String = ""
     
@@ -34,11 +37,34 @@ public struct PlaylistsView: View {
             .safeAreaPadding(.bottom, playerManager.currentSong != nil ? 80 : 0)
             .navigationTitle("BiliSound")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: {
+                        if accountManager.isLoggedIn {
+                            showingImportSheet = true
+                        } else {
+                            showingLoginSheet = true
+                        }
+                    }) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "square.and.arrow.down")
+                            Text("Import")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .foregroundColor(.pink)
+                    }
+                }
+                
                 ToolbarItem(placement: .primaryAction) {
                     Button(action: { showingCreatePlaylist = true }) {
                         Image(systemName: "plus")
                     }
                 }
+            }
+            .sheet(isPresented: $showingImportSheet) {
+                ImportBiliPlaylistSheet(playlists: $playlists)
+            }
+            .sheet(isPresented: $showingLoginSheet) {
+                BilibiliLoginSheet()
             }
             .alert("Create New Playlist", isPresented: $showingCreatePlaylist) {
                 TextField("Playlist Name", text: $newPlaylistName)

@@ -9,6 +9,7 @@ public struct MainTabView: View {
     
     @State private var isFullScreenPresented: Bool = false
     @State private var showingLoginSheet: Bool = false
+    @State private var showingImportSheet: Bool = false
     @State private var quickPlayInput: String = ""
     @State private var isQuickPlaying: Bool = false
     @State private var quickPlayError: String?
@@ -51,6 +52,9 @@ public struct MainTabView: View {
         }
         .sheet(isPresented: $showingLoginSheet) {
             BilibiliLoginSheet()
+        }
+        .sheet(isPresented: $showingImportSheet) {
+            ImportBiliPlaylistSheet(playlists: $playlists)
         }
     }
     
@@ -153,6 +157,21 @@ public struct MainTabView: View {
                             }
                         }
                         .padding(.vertical, 4)
+                        
+                        Button(action: {
+                            showingImportSheet = true
+                        }) {
+                            HStack {
+                                Image(systemName: "square.and.arrow.down")
+                                    .foregroundColor(.pink)
+                                Text("Import Bilibili Favorites (导入收藏夹)")
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                         
                         Button(role: .destructive, action: {
                             accountManager.logout()

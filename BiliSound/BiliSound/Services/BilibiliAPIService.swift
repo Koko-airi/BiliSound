@@ -27,6 +27,67 @@ public struct BiliAudioStreamInfo {
     public let codecs: String
 }
 
+/// Bilibili Favorite Folder model representing a collection (created or collected)
+public struct BiliFavFolder: Identifiable, Codable, Hashable {
+    public let id: Int // media_id (mlid)
+    public let fid: Int
+    public let mid: Int
+    public let title: String
+    public let mediaCount: Int
+    public let coverUrl: String?
+    public let intro: String?
+    public let isCollected: Bool
+    
+    public init(
+        id: Int,
+        fid: Int,
+        mid: Int,
+        title: String,
+        mediaCount: Int,
+        coverUrl: String? = nil,
+        intro: String? = nil,
+        isCollected: Bool = false
+    ) {
+        self.id = id
+        self.fid = fid
+        self.mid = mid
+        self.title = title
+        self.mediaCount = mediaCount
+        self.coverUrl = coverUrl
+        self.intro = intro
+        self.isCollected = isCollected
+    }
+}
+
+/// Bilibili Favorite Item/Resource model (video item inside a folder)
+public struct BiliFavResource: Identifiable, Codable, Hashable {
+    public let id: Int // aid
+    public let bvid: String
+    public let title: String
+    public let cover: String
+    public let duration: TimeInterval
+    public let upperName: String
+    public let upperMid: Int
+    
+    public init(
+        id: Int,
+        bvid: String,
+        title: String,
+        cover: String,
+        duration: TimeInterval,
+        upperName: String,
+        upperMid: Int = 0
+    ) {
+        self.id = id
+        self.bvid = bvid
+        self.title = title
+        self.cover = cover
+        self.duration = duration
+        self.upperName = upperName
+        self.upperMid = upperMid
+    }
+}
+
 public enum BiliAPIError: LocalizedError {
     case invalidURL
     case networkError(String)
@@ -261,6 +322,259 @@ public final class BilibiliAPIService {
             backupUrls: backupUrls,
             bandwidth: bandwidth,
             codecs: codecs
+        )
+    }
+    
+    // MARK: - User Favorite Playlists Integration
+    
+    /// Fetches all favorite folders created by the user (requires login mid)
+    public func fetchCreatedFavoriteFolders(mid: Int) async throws -> [BiliFavFolder] {
+        guard let url = URL(string: "https://api.bilibili.com/x/v3/fav/folder/created/list-all?up_mid=\(mid)") else {
+            throw BiliAPIError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        for (key, value) in Self.defaultHeaders {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            throw BiliAPIError.networkError("Fetch folders HTTP status \(status)")
+        }
+        
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let code = json["code"] as? Int else {
+            throw BiliAPIError.decodingError
+        }
+        
+        if code != 0 {
+            let msg = json["message"] as? String ?? "Failed to fetch favorite folders"
+            throw BiliAPIError.apiError(code: code, message: msg)
+        }
+        
+        guard let dataDict = json["data"] as? [String: Any],
+              let list = dataDict["list"] as? [[String: Any]] else {
+            return []
+        }
+        
+        var folders: [BiliFavFolder] = []
+        for item in list {
+            guard let id = item["id"] as? Int,
+                  let fid = item["fid"] as? Int,
+                  let title = item["title"] as? String else { continue }
+            
+            let itemMid = item["mid"] as? Int ?? mid
+            let mediaCount = item["media_count"] as? Int ?? 0
+            let intro = item["intro"] as? String
+            let cover = item["cover"] as? String
+            
+            let cleanCover = cover?.replacingOccurrences(of: "http://", with: "https://")
+            folders.append(BiliFavFolder(
+                id: id,
+                fid: fid,
+                mid: itemMid,
+                title: title,
+                mediaCount: mediaCount,
+                coverUrl: cleanCover,
+                intro: intro,
+                isCollected: false
+            ))
+        }
+        return folders
+    }
+    
+    /// Fetches folders collected (subscribed) by the user
+    public func fetchCollectedFavoriteFolders(mid: Int, page: Int = 1, pageSize: Int = 20) async throws -> [BiliFavFolder] {
+        guard let url = URL(string: "https://api.bilibili.com/x/v3/fav/folder/collected/list?up_mid=\(mid)&pn=\(page)&ps=\(pageSize)&platform=web") else {
+            throw BiliAPIError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        for (key, value) in Self.defaultHeaders {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            return []
+        }
+        
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let code = json["code"] as? Int, code == 0,
+              let dataDict = json["data"] as? [String: Any],
+              let list = dataDict["list"] as? [[String: Any]] else {
+            return []
+        }
+        
+        var folders: [BiliFavFolder] = []
+        for item in list {
+            guard let id = item["id"] as? Int,
+                  let title = item["title"] as? String else { continue }
+            
+            let fid = item["fid"] as? Int ?? 0
+            let itemMid = item["mid"] as? Int ?? 0
+            let mediaCount = item["media_count"] as? Int ?? 0
+            let intro = item["intro"] as? String
+            let cover = item["cover"] as? String
+            
+            let cleanCover = cover?.replacingOccurrences(of: "http://", with: "https://")
+            folders.append(BiliFavFolder(
+                id: id,
+                fid: fid,
+                mid: itemMid,
+                title: title,
+                mediaCount: mediaCount,
+                coverUrl: cleanCover,
+                intro: intro,
+                isCollected: true
+            ))
+        }
+        return folders
+    }
+    
+    /// Fetches items inside a specific favorite folder
+    public func fetchFavoriteResources(mediaId: Int, page: Int = 1, pageSize: Int = 20) async throws -> (resources: [BiliFavResource], hasMore: Bool, folderCover: String?) {
+        guard let url = URL(string: "https://api.bilibili.com/x/v3/fav/resource/list?media_id=\(mediaId)&pn=\(page)&ps=\(pageSize)&platform=web") else {
+            throw BiliAPIError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        for (key, value) in Self.defaultHeaders {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            throw BiliAPIError.networkError("Fetch resources HTTP status \(status)")
+        }
+        
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let code = json["code"] as? Int else {
+            throw BiliAPIError.decodingError
+        }
+        
+        if code != 0 {
+            let msg = json["message"] as? String ?? "Failed to fetch playlist items"
+            throw BiliAPIError.apiError(code: code, message: msg)
+        }
+        
+        guard let dataDict = json["data"] as? [String: Any] else {
+            return ([], false, nil)
+        }
+        
+        let hasMore = dataDict["has_more"] as? Bool ?? false
+        var folderCover: String? = nil
+        if let info = dataDict["info"] as? [String: Any],
+           let cover = info["cover"] as? String, !cover.isEmpty {
+            folderCover = cover.replacingOccurrences(of: "http://", with: "https://")
+        }
+        
+        guard let medias = dataDict["medias"] as? [[String: Any]] else {
+            return ([], hasMore, folderCover)
+        }
+        
+        var resources: [BiliFavResource] = []
+        for item in medias {
+            // attr == 1 means deleted or invalid
+            if let attr = item["attr"] as? Int, attr != 0 {
+                continue
+            }
+            guard let id = item["id"] as? Int,
+                  let title = item["title"] as? String else { continue }
+            
+            let bvid = (item["bvid"] as? String) ?? (item["bv_id"] as? String) ?? ""
+            guard !bvid.isEmpty else { continue }
+            
+            let cover = (item["cover"] as? String ?? "").replacingOccurrences(of: "http://", with: "https://")
+            let duration = item["duration"] as? TimeInterval ?? 0
+            
+            var upperName = "Bilibili Artist"
+            var upperMid = 0
+            if let upper = item["upper"] as? [String: Any] {
+                upperName = upper["name"] as? String ?? upperName
+                upperMid = upper["mid"] as? Int ?? 0
+            }
+            
+            resources.append(BiliFavResource(
+                id: id,
+                bvid: bvid,
+                title: title,
+                cover: cover,
+                duration: duration,
+                upperName: upperName,
+                upperMid: upperMid
+            ))
+        }
+        
+        return (resources, hasMore, folderCover)
+    }
+    
+    /// Imports a complete favorite folder into a local BiliSound Playlist model
+    public func importFolderAsPlaylist(
+        folder: BiliFavFolder,
+        maxItems: Int = 100,
+        progressHandler: ((_ loaded: Int, _ total: Int) -> Void)? = nil
+    ) async throws -> Playlist {
+        var allResources: [BiliFavResource] = []
+        var page = 1
+        var hasMore = true
+        var resolvedCover: String? = folder.coverUrl
+        
+        let targetCount = min(folder.mediaCount > 0 ? folder.mediaCount : maxItems, maxItems)
+        
+        while hasMore && allResources.count < maxItems {
+            let result = try await fetchFavoriteResources(mediaId: folder.id, page: page, pageSize: 20)
+            if resolvedCover == nil || resolvedCover?.isEmpty == true {
+                resolvedCover = result.folderCover
+            }
+            allResources.append(contentsOf: result.resources)
+            progressHandler?(allResources.count, targetCount)
+            
+            if !result.hasMore || result.resources.isEmpty {
+                break
+            }
+            page += 1
+            
+            // Respectful pacing between Bilibili pagination requests
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        
+        // Convert BiliFavResources to Songs and SongVersions
+        var songs: [Song] = []
+        for resource in allResources {
+            let version = SongVersion(
+                name: "Original Video Audio",
+                bvid: resource.bvid,
+                uploader: resource.upperName,
+                duration: resource.duration,
+                audioQuality: "192kbps DASH",
+                picUrl: resource.cover
+            )
+            
+            let song = Song(
+                title: resource.title,
+                artist: resource.upperName,
+                artworkUrl: resource.cover,
+                versions: [version]
+            )
+            songs.append(song)
+        }
+        
+        if resolvedCover == nil, let firstSongCover = songs.first?.artworkUrl {
+            resolvedCover = firstSongCover
+        }
+        
+        return Playlist(
+            name: folder.title,
+            description: folder.intro ?? "Imported from Bilibili Favorites (\(songs.count) songs)",
+            coverUrl: resolvedCover,
+            songs: songs
         )
     }
 }
