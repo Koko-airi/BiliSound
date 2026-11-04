@@ -548,8 +548,9 @@ public final class BilibiliAPIService {
         // Convert BiliFavResources to Songs and SongVersions
         var songs: [Song] = []
         for resource in allResources {
+            // Default the version label name to the name/title of the video
             let version = SongVersion(
-                name: "Original Video Audio",
+                name: resource.title,
                 bvid: resource.bvid,
                 uploader: resource.upperName,
                 duration: resource.duration,

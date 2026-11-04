@@ -7,11 +7,12 @@ public struct PlaylistDetailView: View {
     @Binding var playlist: Playlist
     var playlists: Binding<[Playlist]>?
     @ObservedObject var playerManager: AudioPlayerManager
+    @ObservedObject private var storageManager = PlaylistStorageManager.shared
     
     @State private var selectedSongForVersionManager: Song?
     @State private var showingAddSongSheet: Bool = false
     @State private var showingSessionHistory: Bool = false
-    @State private var showingDeleteConfirmation: Bool = false
+    @State private var showingPlaylistSettings: Bool = false
     
     public init(
         playlist: Binding<Playlist>,
@@ -77,12 +78,32 @@ public struct PlaylistDetailView: View {
                     }
                     .onDelete { indexSet in
                         playlist.songs.remove(atOffsets: indexSet)
+                        // Trigger persistence for updated songs
+                        if let index = storageManager.playlists.firstIndex(where: { $0.id == playlist.id }) {
+                            storageManager.playlists[index] = playlist
+                        }
                     }
                 }
             }
             
-            // Playlist Settings Section (Safe deletion & metadata management)
-            playlistSettingsSection
+            // Link to dedicated Playlist Settings page
+            Section {
+                NavigationLink(destination: PlaylistSettingsView(
+                    playlist: $playlist,
+                    onPlaylistDeleted: {
+                        dismiss()
+                    }
+                )) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "gearshape")
+                            .foregroundColor(.pink)
+                        Text("Playlist Settings")
+                            .font(.body.weight(.medium))
+                        Spacer()
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
         }
         .listStyle(.insetGrouped)
         // Bug 2: Bottom safe area padding prevents mini bar from occluding the last list items
@@ -101,18 +122,6 @@ public struct PlaylistDetailView: View {
                 }
             }
         }
-        .confirmationDialog(
-            "Delete Playlist",
-            isPresented: $showingDeleteConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Delete \"\(playlist.name)\"", role: .destructive) {
-                deletePlaylist()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Are you sure you want to delete this playlist? This action cannot be undone.")
-        }
         .sheet(item: $selectedSongForVersionManager) { song in
             if let songIndex = playlist.songs.firstIndex(where: { $0.id == song.id }) {
                 VersionManagerSheet(
@@ -120,10 +129,20 @@ public struct PlaylistDetailView: View {
                     playlist: playlist,
                     playerManager: playerManager
                 )
+                .onDisappear {
+                    if let index = storageManager.playlists.firstIndex(where: { $0.id == playlist.id }) {
+                        storageManager.playlists[index] = playlist
+                    }
+                }
             }
         }
         .sheet(isPresented: $showingAddSongSheet) {
             AddSongSheet(playlist: $playlist)
+                .onDisappear {
+                    if let index = storageManager.playlists.firstIndex(where: { $0.id == playlist.id }) {
+                        storageManager.playlists[index] = playlist
+                    }
+                }
         }
         .sheet(isPresented: $showingSessionHistory) {
             SessionHistoryView(playerManager: playerManager)
@@ -272,52 +291,5 @@ public struct PlaylistDetailView: View {
             .cornerRadius(8)
         }
         .buttonStyle(.plain)
-    }
-    
-    // MARK: - Playlist Settings Section
-    
-    private var playlistSettingsSection: some View {
-        Section(header: Text("Playlist Settings")) {
-            HStack {
-                Text("Total Tracks")
-                Spacer()
-                Text("\(playlist.songs.count)")
-                    .foregroundColor(.secondary)
-            }
-            
-            HStack {
-                Text("Total Versions")
-                Spacer()
-                Text("\(playlist.totalVersionsCount)")
-                    .foregroundColor(.secondary)
-            }
-            
-            HStack {
-                Text("Created Date")
-                Spacer()
-                Text(playlist.createdAt.formatted(date: .abbreviated, time: .omitted))
-                    .foregroundColor(.secondary)
-            }
-            
-            Button(role: .destructive, action: {
-                showingDeleteConfirmation = true
-            }) {
-                HStack {
-                    Image(systemName: "trash")
-                        .foregroundColor(.red)
-                    Text("Delete Playlist")
-                        .fontWeight(.semibold)
-                        .foregroundColor(.red)
-                    Spacer()
-                }
-            }
-        }
-    }
-    
-    private func deletePlaylist() {
-        if let playlists = playlists {
-            playlists.wrappedValue.removeAll { $0.id == playlist.id }
-        }
-        dismiss()
     }
 }

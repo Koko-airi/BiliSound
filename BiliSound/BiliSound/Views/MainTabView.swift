@@ -5,7 +5,7 @@ import SwiftUI
 public struct MainTabView: View {
     @StateObject private var playerManager = AudioPlayerManager.shared
     @ObservedObject private var accountManager = BiliAccountManager.shared
-    @State private var playlists: [Playlist] = SampleData.defaultPlaylists
+    @ObservedObject private var storageManager = PlaylistStorageManager.shared
     
     @State private var isFullScreenPresented: Bool = false
     @State private var showingLoginSheet: Bool = false
@@ -20,7 +20,7 @@ public struct MainTabView: View {
         ZStack(alignment: .bottom) {
             TabView {
                 // Tab 1: Playlists
-                PlaylistsView(playlists: $playlists, playerManager: playerManager)
+                PlaylistsView(playlists: $storageManager.playlists, playerManager: playerManager)
                     .tabItem {
                         Label("Library", systemImage: "music.note.list")
                     }
@@ -54,7 +54,7 @@ public struct MainTabView: View {
             BilibiliLoginSheet()
         }
         .sheet(isPresented: $showingImportSheet) {
-            ImportBiliPlaylistSheet(playlists: $playlists)
+            ImportBiliPlaylistSheet()
         }
     }
     

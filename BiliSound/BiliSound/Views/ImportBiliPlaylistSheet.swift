@@ -1,13 +1,17 @@
 import SwiftUI
 
 /// Sheet displaying the user's Bilibili favorite folders (both created and collected),
-/// allowing the user to select and import them directly into their BiliSound library.
+/// allowing the user to select and import them either as a new playlist or merged into an existing playlist.
 @MainActor
 public struct ImportBiliPlaylistSheet: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var accountManager = BiliAccountManager.shared
+    @ObservedObject var storageManager = PlaylistStorageManager.shared
     
-    @Binding var playlists: [Playlist]
+    /// Optional target playlist ID. If provided, songs are merged into this playlist;
+    /// if nil, a new Playlist is created and saved.
+    var targetPlaylistId: UUID?
+    var onImportFinished: ((_ added: Int, _ skipped: Int) -> Void)?
     
     @State private var createdFolders: [BiliFavFolder] = []
     @State private var collectedFolders: [BiliFavFolder] = []
@@ -21,8 +25,20 @@ public struct ImportBiliPlaylistSheet: View {
     @State private var importProgressText: String = ""
     @State private var successfullyImportedTitles: Set<String> = []
     
-    public init(playlists: Binding<[Playlist]>) {
-        self._playlists = playlists
+    public init(
+        targetPlaylistId: UUID? = nil,
+        onImportFinished: ((_ added: Int, _ skipped: Int) -> Void)? = nil
+    ) {
+        self.targetPlaylistId = targetPlaylistId
+        self.onImportFinished = onImportFinished
+    }
+    
+    // Backwards-compatible initializer that accepts Binding<[Playlist]>
+    public init(
+        playlists: Binding<[Playlist]>
+    ) {
+        self.targetPlaylistId = nil
+        self.onImportFinished = nil
     }
     
     public var body: some View {
@@ -42,7 +58,7 @@ public struct ImportBiliPlaylistSheet: View {
                     }
                 }
             }
-            .navigationTitle("Import from Bilibili")
+            .navigationTitle(targetPlaylistId != nil ? "Import Songs" : "Import Playlist")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -166,7 +182,7 @@ public struct ImportBiliPlaylistSheet: View {
                 HStack(spacing: 4) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
-                    Text("Imported")
+                    Text(targetPlaylistId != nil ? "Merged" : "Imported")
                         .font(.caption.weight(.semibold))
                         .foregroundColor(.green)
                 }
@@ -186,7 +202,7 @@ public struct ImportBiliPlaylistSheet: View {
                         await importFolder(folder)
                     }
                 }) {
-                    Text("Import")
+                    Text(targetPlaylistId != nil ? "Import Songs" : "Import")
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -290,7 +306,7 @@ public struct ImportBiliPlaylistSheet: View {
         importProgressText = "Fetching..."
         
         do {
-            let playlist = try await BilibiliAPIService.shared.importFolderAsPlaylist(
+            let fetchedPlaylist = try await BilibiliAPIService.shared.importFolderAsPlaylist(
                 folder: folder,
                 maxItems: 100,
                 progressHandler: { loaded, total in
@@ -300,11 +316,21 @@ public struct ImportBiliPlaylistSheet: View {
                 }
             )
             
-            // Append to playlists
-            playlists.append(playlist)
-            successfullyImportedTitles.insert(folder.title)
-            importingFolderId = nil
-            importProgressText = ""
+            if let targetId = targetPlaylistId {
+                // Merge into existing playlist without adding duplicates
+                let (added, skipped) = storageManager.importSongs(from: fetchedPlaylist, into: targetId)
+                successfullyImportedTitles.insert(folder.title)
+                importingFolderId = nil
+                importProgressText = ""
+                onImportFinished?(added, skipped)
+            } else {
+                // Append as brand new local playlist and persist
+                storageManager.addPlaylist(fetchedPlaylist)
+                successfullyImportedTitles.insert(folder.title)
+                importingFolderId = nil
+                importProgressText = ""
+                onImportFinished?(fetchedPlaylist.songs.count, 0)
+            }
         } catch {
             importingFolderId = nil
             importProgressText = ""

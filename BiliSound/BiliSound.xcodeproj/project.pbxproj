@@ -35,6 +35,8 @@
 		E59FE3F03928667E8E4E2D00 /* NowPlayingMiniBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 791943A627990580A435BE9C /* NowPlayingMiniBar.swift */; };
 		F1B15869E5FAC82C49FF19E6 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63BD40594A17BE11DCF1E817 /* MainTabView.swift */; };
 		A1B2C3D40001000100000001 /* ImportBiliPlaylistSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40002000200000002 /* ImportBiliPlaylistSheet.swift */; };
+		A1B2C3D40003000300000003 /* PlaylistStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40004000400000004 /* PlaylistStorageManager.swift */; };
+		A1B2C3D40005000500000005 /* PlaylistSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40006000600000006 /* PlaylistSettingsView.swift */; };
 		9BFB204CDC34F228A7228E91 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B3E86ECB7ED85A0A81145C64 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -68,6 +70,8 @@
 		791943A627990580A435BE9C /* NowPlayingMiniBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NowPlayingMiniBar.swift"; sourceTree = "<group>"; };
 		63BD40594A17BE11DCF1E817 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MainTabView.swift"; sourceTree = "<group>"; };
 		A1B2C3D40002000200000002 /* ImportBiliPlaylistSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ImportBiliPlaylistSheet.swift"; sourceTree = "<group>"; };
+		A1B2C3D40004000400000004 /* PlaylistStorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlaylistStorageManager.swift"; sourceTree = "<group>"; };
+		A1B2C3D40006000600000006 /* PlaylistSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlaylistSettingsView.swift"; sourceTree = "<group>"; };
 		B3E86ECB7ED85A0A81145C64 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Assets.xcassets"; sourceTree = "<group>"; };
 		6B967A58F4E53E74B372CB39 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -112,6 +116,7 @@
 				7C8916D7FAAAE4DB3C0F1F4E /* BilibiliAPIService.swift */,
 				8EC46EB5E332BEC2CF6152B1 /* SampleData.swift */,
 				EA8D30E5CD85085D734D4CA8 /* BilibiliAudioProxy.swift */,
+				A1B2C3D40004000400000004 /* PlaylistStorageManager.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -151,6 +156,7 @@
 				791943A627990580A435BE9C /* NowPlayingMiniBar.swift */,
 				63BD40594A17BE11DCF1E817 /* MainTabView.swift */,
 				A1B2C3D40002000200000002 /* ImportBiliPlaylistSheet.swift */,
+				A1B2C3D40006000600000006 /* PlaylistSettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -288,6 +294,8 @@
 				E59FE3F03928667E8E4E2D00 /* NowPlayingMiniBar.swift in Sources */,
 				F1B15869E5FAC82C49FF19E6 /* MainTabView.swift in Sources */,
 				A1B2C3D40001000100000001 /* ImportBiliPlaylistSheet.swift in Sources */,
+				A1B2C3D40003000300000003 /* PlaylistStorageManager.swift in Sources */,
+				A1B2C3D40005000500000005 /* PlaylistSettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

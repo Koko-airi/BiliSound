@@ -58,7 +58,7 @@ public struct PlaylistsView: View {
                 }
             }
             .sheet(isPresented: $showingImportSheet) {
-                ImportBiliPlaylistSheet(playlists: $playlists)
+                ImportBiliPlaylistSheet()
             }
             .sheet(isPresented: $showingLoginSheet) {
                 BilibiliLoginSheet()
@@ -125,7 +125,7 @@ public struct PlaylistsView: View {
             coverUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80",
             songs: []
         )
-        playlists.append(newPlaylist)
+        PlaylistStorageManager.shared.addPlaylist(newPlaylist)
         newPlaylistName = ""
         newPlaylistDesc = ""
     }
