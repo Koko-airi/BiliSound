@@ -88,18 +88,19 @@ public struct PlaylistDetailView: View {
             
             // Link to dedicated Playlist Settings page
             Section {
-                NavigationLink(destination: PlaylistSettingsView(
-                    playlist: $playlist,
-                    onPlaylistDeleted: {
-                        dismiss()
-                    }
-                )) {
+                Button(action: {
+                    showingPlaylistSettings = true
+                }) {
                     HStack(spacing: 10) {
                         Image(systemName: "gearshape")
                             .foregroundColor(.pink)
                         Text("Playlist Settings")
                             .font(.body.weight(.medium))
+                            .foregroundColor(.primary)
                         Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                     .padding(.vertical, 2)
                 }
@@ -110,6 +111,14 @@ public struct PlaylistDetailView: View {
         .safeAreaPadding(.bottom, playerManager.currentSong != nil ? 80 : 0)
         .navigationTitle(playlist.name)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: $showingPlaylistSettings) {
+            PlaylistSettingsView(
+                playlist: $playlist,
+                onPlaylistDeleted: {
+                    dismiss()
+                }
+            )
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(action: { showingAddSongSheet = true }) {

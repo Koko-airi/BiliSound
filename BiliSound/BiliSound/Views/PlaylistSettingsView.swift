@@ -127,12 +127,12 @@ public struct PlaylistSettingsView: View {
             isPresented: $showingDeleteConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Delete \"\(playlist.name)\"", role: .destructive) {
+            Button("Delete Playlist", role: .destructive) {
                 deletePlaylist()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Are you sure you want to delete \"\(playlist.name)\"? This action cannot be undone.")
+            Text("Are you sure you want to delete this playlist? This action cannot be undone.")
         }
         .sheet(isPresented: $showingImportSheet) {
             ImportBiliPlaylistSheet(targetPlaylistId: playlist.id) { added, skipped in
@@ -159,9 +159,7 @@ public struct PlaylistSettingsView: View {
                 importResultAlertMessage = nil
             }
         } message: {
-            if let msg = importResultAlertMessage {
-                Text(msg)
-            }
+            Text(importResultAlertMessage ?? "")
         }
     }
     
