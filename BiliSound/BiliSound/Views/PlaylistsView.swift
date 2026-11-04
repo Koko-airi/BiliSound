@@ -23,12 +23,9 @@ public struct PlaylistsView: View {
             List {
                 Section(header: Text("Playlists")) {
                     ForEach($playlists) { $playlist in
-                        NavigationLink(destination: PlaylistDetailView(playlist: $playlist, playerManager: playerManager)) {
+                        NavigationLink(destination: PlaylistDetailView(playlist: $playlist, playlists: $playlists, playerManager: playerManager)) {
                             playlistRow(playlist)
                         }
-                    }
-                    .onDelete { indexSet in
-                        playlists.remove(atOffsets: indexSet)
                     }
                 }
             }

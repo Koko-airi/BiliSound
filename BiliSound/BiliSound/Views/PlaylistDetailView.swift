@@ -3,15 +3,23 @@ import SwiftUI
 /// Detailed view of a playlist with sequential play, session shuffle, and multi-version management
 @MainActor
 public struct PlaylistDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     @Binding var playlist: Playlist
+    var playlists: Binding<[Playlist]>?
     @ObservedObject var playerManager: AudioPlayerManager
     
     @State private var selectedSongForVersionManager: Song?
     @State private var showingAddSongSheet: Bool = false
     @State private var showingSessionHistory: Bool = false
+    @State private var showingDeleteConfirmation: Bool = false
     
-    public init(playlist: Binding<Playlist>, playerManager: AudioPlayerManager = .shared) {
+    public init(
+        playlist: Binding<Playlist>,
+        playlists: Binding<[Playlist]>? = nil,
+        playerManager: AudioPlayerManager = .shared
+    ) {
         self._playlist = playlist
+        self.playlists = playlists
         self.playerManager = playerManager
     }
     
@@ -72,6 +80,9 @@ public struct PlaylistDetailView: View {
                     }
                 }
             }
+            
+            // Playlist Settings Section (Safe deletion & metadata management)
+            playlistSettingsSection
         }
         .listStyle(.insetGrouped)
         // Bug 2: Bottom safe area padding prevents mini bar from occluding the last list items
@@ -89,6 +100,18 @@ public struct PlaylistDetailView: View {
                     Image(systemName: "clock.arrow.circlepath")
                 }
             }
+        }
+        .confirmationDialog(
+            "Delete Playlist",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete \"\(playlist.name)\"", role: .destructive) {
+                deletePlaylist()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete this playlist? This action cannot be undone.")
         }
         .sheet(item: $selectedSongForVersionManager) { song in
             if let songIndex = playlist.songs.firstIndex(where: { $0.id == song.id }) {
@@ -249,5 +272,52 @@ public struct PlaylistDetailView: View {
             .cornerRadius(8)
         }
         .buttonStyle(.plain)
+    }
+    
+    // MARK: - Playlist Settings Section
+    
+    private var playlistSettingsSection: some View {
+        Section(header: Text("Playlist Settings")) {
+            HStack {
+                Text("Total Tracks")
+                Spacer()
+                Text("\(playlist.songs.count)")
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack {
+                Text("Total Versions")
+                Spacer()
+                Text("\(playlist.totalVersionsCount)")
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack {
+                Text("Created Date")
+                Spacer()
+                Text(playlist.createdAt.formatted(date: .abbreviated, time: .omitted))
+                    .foregroundColor(.secondary)
+            }
+            
+            Button(role: .destructive, action: {
+                showingDeleteConfirmation = true
+            }) {
+                HStack {
+                    Image(systemName: "trash")
+                        .foregroundColor(.red)
+                    Text("Delete Playlist")
+                        .fontWeight(.semibold)
+                        .foregroundColor(.red)
+                    Spacer()
+                }
+            }
+        }
+    }
+    
+    private func deletePlaylist() {
+        if let playlists = playlists {
+            playlists.wrappedValue.removeAll { $0.id == playlist.id }
+        }
+        dismiss()
     }
 }
