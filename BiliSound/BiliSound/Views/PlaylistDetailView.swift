@@ -102,15 +102,21 @@ public struct PlaylistDetailView: View {
                         }
                     }
                     
-                    // Bottom small grey text center-aligned: "playlist settings"
+                    // Bottom small grey text center-aligned: "playlist settings" (arrow removed)
                     Section {
-                        NavigationLink(destination: PlaylistSettingsView(
-                            playlistName: playlist.name,
-                            onDelete: {
-                                storageManager.removePlaylist(id: playlistId)
-                                dismiss()
+                        ZStack {
+                            NavigationLink(destination: PlaylistSettingsView(
+                                playlistId: playlistId,
+                                playlistName: playlist.name,
+                                onDelete: {
+                                    storageManager.removePlaylist(id: playlistId)
+                                    dismiss()
+                                }
+                            )) {
+                                EmptyView()
                             }
-                        )) {
+                            .opacity(0)
+                            
                             Text("playlist settings")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
