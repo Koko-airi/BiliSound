@@ -98,7 +98,7 @@ public struct PlaylistDetailView: View {
     
     @ViewBuilder
     private func songsSection(playlist: Playlist) -> some View {
-        Section(header: Text("Songs (\(playlist.songs.count))")) {
+        Section {
             if playlist.songs.isEmpty {
                 emptySongsView
             } else {
@@ -111,6 +111,8 @@ public struct PlaylistDetailView: View {
                     }
                 }
             }
+        } header: {
+            Text("Songs (\(playlist.songs.count))")
         } footer: {
             playlistSettingsFooter(playlistName: playlist.name)
         }
