@@ -43,123 +43,145 @@ public struct PlaylistDetailView: View {
     
     public var body: some View {
         Group {
-            if let playlist = playlist, let $boundPlaylist = playlistBinding {
-                List {
-                    // Header Section
-                    headerSection(playlist)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                    
-                    // Feature 2 & 3: Playback Mode Action Bar
-                    actionButtonsSection(playlist)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                    
-                    // Feature 3: Live Session Status Banner
-                    sessionStatusBanner(playlist)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                    
-                    // Songs List
-                    Section(header: Text("Songs (\(playlist.songs.count))")) {
-                        if playlist.songs.isEmpty {
-                            VStack(spacing: 8) {
-                                Image(systemName: "music.note.list")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.secondary)
-                                Text("No songs in this playlist yet.")
-                                    .foregroundColor(.secondary)
-                                Button("Add Song from Bilibili") {
-                                    showingAddSongSheet = true
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 24)
-                        } else {
-                            ForEach(playlist.songs) { song in
-                                let isCurrent = playerManager.currentSong?.id == song.id
-                                SongRowView(
-                                    song: song,
-                                    isPlayingCurrent: isCurrent && playerManager.isPlaying,
-                                    activeVersionName: isCurrent ? playerManager.currentVersion?.name : nil,
-                                    onSelect: {
-                                        playerManager.play(
-                                            song: song,
-                                            in: playlist,
-                                            resetSession: playerManager.currentPlaylist?.id != playlist.id
-                                        )
-                                    },
-                                    onManageVersions: {
-                                        selectedSongForVersionManager = song
-                                    }
-                                )
-                            }
-                            .onDelete { indexSet in
-                                if let index = storageManager.playlists.firstIndex(where: { $0.id == playlistId }) {
-                                    storageManager.playlists[index].songs.remove(atOffsets: indexSet)
-                                }
-                            }
-                        }
-                    } footer: {
-                        // Embedded directly in the Songs section footer to eliminate list section gap
-                        ZStack {
-                            NavigationLink(destination: PlaylistSettingsView(
-                                playlistId: playlistId,
-                                playlistName: playlist.name,
-                                onDelete: {
-                                    storageManager.removePlaylist(id: playlistId)
-                                    dismiss()
-                                }
-                            )) {
-                                EmptyView()
-                            }
-                            .opacity(0)
-                            
-                            Text("playlist settings")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                        }
-                        .padding(.top, 4)
-                        .padding(.bottom, 2)
-                    }
-                }
-                .listStyle(.insetGrouped)
-                .safeAreaPadding(.bottom, playerManager.currentSong != nil ? 80 : 0)
-                .navigationTitle(playlist.name)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button(action: { showingAddSongSheet = true }) {
-                            Image(systemName: "plus")
-                        }
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(action: { showingSessionHistory = true }) {
-                            Image(systemName: "clock.arrow.circlepath")
-                        }
-                    }
-                }
-                .sheet(item: $selectedSongForVersionManager) { song in
-                    if let pIndex = storageManager.playlists.firstIndex(where: { $0.id == playlistId }),
-                       let songIndex = storageManager.playlists[pIndex].songs.firstIndex(where: { $0.id == song.id }) {
-                        VersionManagerSheet(
-                            song: $storageManager.playlists[pIndex].songs[songIndex],
-                            playlist: storageManager.playlists[pIndex],
-                            playerManager: playerManager
-                        )
-                    }
-                }
-                .sheet(isPresented: $showingAddSongSheet) {
-                    AddSongSheet(playlist: $boundPlaylist)
-                }
-                .sheet(isPresented: $showingSessionHistory) {
-                    SessionHistoryView(playerManager: playerManager)
-                }
+            if let playlist = playlist, let boundPlaylist = playlistBinding {
+                contentList(playlist: playlist, boundPlaylist: boundPlaylist)
             } else {
                 Text("Playlist not found")
                     .foregroundColor(.secondary)
             }
+        }
+    }
+    
+    @ViewBuilder
+    private func contentList(playlist: Playlist, boundPlaylist: Binding<Playlist>) -> some View {
+        List {
+            headerSection(playlist)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            
+            actionButtonsSection(playlist)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            
+            sessionStatusBanner(playlist)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            
+            songsSection(playlist: playlist)
+        }
+        .listStyle(.insetGrouped)
+        .safeAreaPadding(.bottom, playerManager.currentSong != nil ? 80 : 0)
+        .navigationTitle(playlist.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: { showingAddSongSheet = true }) {
+                    Image(systemName: "plus")
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: { showingSessionHistory = true }) {
+                    Image(systemName: "clock.arrow.circlepath")
+                }
+            }
+        }
+        .sheet(item: $selectedSongForVersionManager) { song in
+            versionManagerSheet(for: song)
+        }
+        .sheet(isPresented: $showingAddSongSheet) {
+            AddSongSheet(playlist: boundPlaylist)
+        }
+        .sheet(isPresented: $showingSessionHistory) {
+            SessionHistoryView(playerManager: playerManager)
+        }
+    }
+    
+    @ViewBuilder
+    private func songsSection(playlist: Playlist) -> some View {
+        Section(header: Text("Songs (\(playlist.songs.count))")) {
+            if playlist.songs.isEmpty {
+                emptySongsView
+            } else {
+                ForEach(playlist.songs) { song in
+                    songRow(song, in: playlist)
+                }
+                .onDelete { indexSet in
+                    if let index = storageManager.playlists.firstIndex(where: { $0.id == playlistId }) {
+                        storageManager.playlists[index].songs.remove(atOffsets: indexSet)
+                    }
+                }
+            }
+        } footer: {
+            playlistSettingsFooter(playlistName: playlist.name)
+        }
+    }
+    
+    private var emptySongsView: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "music.note.list")
+                .font(.largeTitle)
+                .foregroundColor(.secondary)
+            Text("No songs in this playlist yet.")
+                .foregroundColor(.secondary)
+            Button("Add Song from Bilibili") {
+                showingAddSongSheet = true
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+    }
+    
+    private func songRow(_ song: Song, in playlist: Playlist) -> some View {
+        let isCurrent = playerManager.currentSong?.id == song.id
+        return SongRowView(
+            song: song,
+            isPlayingCurrent: isCurrent && playerManager.isPlaying,
+            activeVersionName: isCurrent ? playerManager.currentVersion?.name : nil,
+            onSelect: {
+                playerManager.play(
+                    song: song,
+                    in: playlist,
+                    resetSession: playerManager.currentPlaylist?.id != playlist.id
+                )
+            },
+            onManageVersions: {
+                selectedSongForVersionManager = song
+            }
+        )
+    }
+    
+    private func playlistSettingsFooter(playlistName: String) -> some View {
+        ZStack {
+            NavigationLink(destination: PlaylistSettingsView(
+                playlistId: playlistId,
+                playlistName: playlistName,
+                onDelete: {
+                    storageManager.removePlaylist(id: playlistId)
+                    dismiss()
+                }
+            )) {
+                EmptyView()
+            }
+            .opacity(0)
+            
+            Text("playlist settings")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .padding(.top, 4)
+        .padding(.bottom, 2)
+    }
+    
+    @ViewBuilder
+    private func versionManagerSheet(for song: Song) -> some View {
+        if let pIndex = storageManager.playlists.firstIndex(where: { $0.id == playlistId }),
+           let songIndex = storageManager.playlists[pIndex].songs.firstIndex(where: { $0.id == song.id }) {
+            VersionManagerSheet(
+                song: $storageManager.playlists[pIndex].songs[songIndex],
+                playlist: storageManager.playlists[pIndex],
+                playerManager: playerManager
+            )
         }
     }
     
