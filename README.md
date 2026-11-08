@@ -1,6 +1,6 @@
 # BiliSound (哔哩纯音) - iOS Bilibili Music Player
 
-A modern, high-performance iOS music player designed for streaming music directly from Bilibili with pure audio extraction, multi-version track mapping, single-session fair shuffle, seamless Bilibili favorites import, local playlist persistence, and full lock-screen media controls.
+A modern, high-performance iOS music player designed for streaming music directly from Bilibili with pure audio extraction, multi-version track mapping, single-session shuffle, seamless Bilibili favorites import, local playlist persistence, and full lock-screen media controls.
 
 Compatible with **iOS 17.0+ / iOS 18.x / iOS 26+** (optimized for all iPhone screen sizes, including iPhone 13 Pro notch & Dynamic Island devices).
 
