@@ -1,6 +1,6 @@
 # BiliSound (哔哩纯音) - iOS Bilibili Music Player
 
-A modern, high-performance iOS music player designed for streaming music directly from Bilibili with pure audio extraction, multi-version track mapping, single-session shuffle, seamless Bilibili favorites import, local playlist persistence, and full lock-screen media controls.
+A modern, high-performance iOS music player designed for streaming music directly from Bilibili with multi-version track mapping, pure audio extraction, seamless Bilibili favorites import, local playlist persistence, single-session shuffle, and full lock-screen media controls.
 
 Compatible with **iOS 17.0+ / iOS 18.x / iOS 26+** (optimized for all iPhone screen sizes, including iPhone 13 Pro notch & Dynamic Island devices).
 
@@ -8,18 +8,31 @@ Compatible with **iOS 17.0+ / iOS 18.x / iOS 26+** (optimized for all iPhone scr
 
 ## 🌟 Key Features
 
-### 🎧 1. Pure "Music Player Mode" by Default (Zero Video Overhead)
+### 🎲 1. Multi-Version Song Mapping (Flagship Feature)
+Songs on Bilibili often exist in multiple formats: official studio MVs, live stadium concert recordings, "THE FIRST TAKE" one-takes, acoustic unplugged covers, and fingerstyle instrumentals.
+- **Multi-Version Data Architecture**: A single `Song` entity maps to multiple Bilibili video versions:
+  ```swift
+  public struct SongVersion: Identifiable, Codable {
+      public var name: String          // e.g. "2007 World Tour Live Concert"
+      public var bvid: String          // e.g. "BV1Zp4y1a7uZ"
+      public var uploader: String      // e.g. "Jay Chou"
+      public var duration: TimeInterval
+      public var audioQuality: String  // e.g. "192kbps DASH"
+      public var isEnabled: Bool       // Active in random version pool
+      public var weight: Double        // Relative probability weight
+  }
+  ```
+- **Weighted Random Roll**: Whenever a track plays, `song.selectRandomVersion()` randomly selects one of its active versions based on configured weights.
+- **Instant Version Re-Roll (`🎲`)**: Tap the dice icon in the Now Playing screen or mini bar to instantly re-roll to another version of the current song.
+- **Version Manager Sheet**: Easily inspect all versions of any song, adjust weights, toggle versions on/off, or paste any Bilibili BV URL to attach new versions.
+
+---
+
+### 🎧 2. Pure "Music Player Mode" (Zero Video Overhead)
 - **Audio-Only Streaming**: Fetches Bilibili's DASH manifest (`fnval=16`) from the official PlayURL API (`https://api.bilibili.com/x/player/playurl`) and extracts the pure audio stream (`dash.audio`), completely discarding video data.
 - **Bandwidth & Battery Efficient**: Saves up to **85% data and CPU cycles** compared to regular video streaming; prevents phone overheating and unwanted screen wakeups.
 - **CDN Anti-Leech Protection Bypass**: Automatically injects required HTTP headers (`Referer: https://www.bilibili.com/video/<BVID>` and Mobile Safari `User-Agent`) via `BilibiliAudioProxy` and `AVURLAssetHTTPHeaderFieldsKey` to eliminate HTTP 403 CDN errors.
 - **Background Playback**: Configured with `UIBackgroundModes: audio` and `AVAudioSession(category: .playback)` for continuous background listening while your device is locked or when switching between apps.
-
----
-
-### 🔐 2. Bilibili Account Authentication & VIP High-Bitrate Audio
-- **Seamless Account Login**: Integrated `BiliAccountManager` and `BilibiliLoginSheet` support official Bilibili Web Login (QR code app scan, SMS code, password) as well as manual cookie (`SESSDATA`) entry.
-- **High-Bitrate Audio Stream Access**: Authenticated sessions unlock VIP audio streams up to **192kbps / 320kbps / Hi-Res DASH** and completely eliminate guest WAF rate-limiting challenges.
-- **Live Account Status**: Real-time display of your avatar, nickname, UID, and VIP tier badge in the Account tab.
 
 ---
 
@@ -51,23 +64,10 @@ Supports three distinct playback states:
 
 ---
 
-### 🎲 6. Multi-Version Song Mapping (Feature Highlight)
-Songs on Bilibili often exist in multiple formats (Studio MV, World Tour live concert, acoustic one-take, piano cover, remix).
-- **Multi-Version Data Architecture**: A single `Song` holds an array of `[SongVersion]`:
-  ```swift
-  public struct SongVersion: Identifiable, Codable {
-      public var name: String          // e.g. "2007 World Tour Live Concert"
-      public var bvid: String          // e.g. "BV1Zp4y1a7uZ"
-      public var uploader: String      // e.g. "Jay Chou"
-      public var duration: TimeInterval
-      public var audioQuality: String  // e.g. "192kbps DASH"
-      public var isEnabled: Bool       // Active in random version pool
-      public var weight: Double        // Relative probability weight
-  }
-  ```
-- **Weighted Random Roll**: Whenever a track plays, `song.selectRandomVersion()` randomly selects one of its active versions.
-- **Re-Roll Version Button (`🎲`)**: Instantly re-rolls a different version of the currently playing song with one tap in the player or mini bar.
-- **Version Manager Sheet**: Easily inspect all versions of any song, adjust selection weights, toggle versions on/off, or paste a new Bilibili BV URL to attach another version.
+### 🔐 6. Bilibili Account Authentication & VIP High-Bitrate Audio
+- **Seamless Account Login**: Integrated `BiliAccountManager` and `BilibiliLoginSheet` support official Bilibili Web Login (QR code app scan, SMS code, password) as well as manual cookie (`SESSDATA`) entry.
+- **High-Bitrate Audio Stream Access**: Authenticated sessions unlock VIP audio streams up to **192kbps / 320kbps / Hi-Res DASH** and completely eliminate guest WAF rate-limiting challenges.
+- **Live Account Status**: Real-time display of your avatar, nickname, UID, and VIP tier badge in the Account tab.
 
 ---
 
@@ -148,6 +148,6 @@ BiliSound/
 ---
 
 ## 💡 Quick Tips
+- **Multi-Version Switching**: Tap on the version pill (e.g. `🎲 2 versions`) in any song row or the dice icon on the player screen to re-roll or customize song versions.
 - **Instant Audio Stream**: Go to the **Quick Stream** tab and paste any Bilibili video URL or BV ID (`BV...`) to stream pure DASH audio immediately.
 - **Importing Your Playlists**: Log into your Bilibili account in the **Account & Settings** tab, then tap **"Import"** on the Library screen to download your personal collection folders.
-- **Multi-Version Switching**: Tap on the version pill (e.g. `🎲 2 versions`) in any song row or the dice icon on the player screen to re-roll or customize song versions.
