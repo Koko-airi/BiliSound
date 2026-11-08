@@ -140,7 +140,7 @@ BiliSound/
 
 ### Running the App
 1. Clone or open the repository folder.
-2. Double-click `BiliSound/BiliSound.xcodeproj` to open the project in Xcode.
+2. Double-click `BiliSound.xcodeproj` to open the project in Xcode.
 3. Select your target device or simulator (e.g., **iPhone 13 Pro**, **iPhone 15 Pro**, **iPhone 16 Pro**).
 4. Press **Cmd + R** to build and run.
 5. *(Optional for physical devices)*: Under **BiliSound target > Signing & Capabilities**, choose your Apple ID development team.
