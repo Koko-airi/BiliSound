@@ -33,7 +33,7 @@ public struct SessionHistoryView: View {
                             Image(systemName: "shield.checkerboard")
                                 .font(.title2)
                                 .foregroundColor(.cyan)
-                            Text("Feature 3: Single-Session Guarantee")
+                            Text("Single-Session Guarantee")
                                 .font(.headline)
                         }
                         

@@ -31,7 +31,7 @@ public struct VersionManagerSheet: View {
                             Image(systemName: "dice.fill")
                                 .font(.title3)
                                 .foregroundColor(.pink)
-                            Text("Feature 4: Multi-Version Engine")
+                            Text("Multi-Version Engine")
                                 .font(.headline)
                         }
                         Text("When this song is selected, BiliSound will randomly choose one of the enabled versions below to stream in pure audio mode.")

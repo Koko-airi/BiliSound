@@ -93,7 +93,7 @@ public struct MainTabView: View {
                     .disabled(quickPlayInput.isEmpty || isQuickPlaying)
                 }
                 
-                Section(header: Text("Feature 1 Status")) {
+                Section(header: Text("Audio Engine Status")) {
                     HStack {
                         Image(systemName: "headphones")
                             .foregroundColor(.green)
@@ -229,7 +229,7 @@ public struct MainTabView: View {
                     }
                 }
                 
-                Section(header: Text("Session Tracking (Feature 3)")) {
+                Section(header: Text("Session Tracking")) {
                     HStack {
                         Text("Current Session Plays")
                         Spacer()
