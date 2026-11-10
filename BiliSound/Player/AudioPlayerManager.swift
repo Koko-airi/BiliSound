@@ -33,6 +33,28 @@ public final class AudioPlayerManager: ObservableObject {
     /// Audio stream quality currently playing
     @Published public private(set) var activeAudioQuality: String = "192kbps DASH"
     
+    // MARK: - Volume Normalization (ReplayGain / Loudness Matching)
+    
+    /// User preference to enable/disable volume normalization across tracks (defaults to true)
+    @Published public var isVolumeNormalizationEnabled: Bool = UserDefaults.standard.object(forKey: "bili_volume_normalization_enabled") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(isVolumeNormalizationEnabled, forKey: "bili_volume_normalization_enabled")
+            applyVolumeNormalization(smoothly: true)
+        }
+    }
+    
+    /// Current calculated or applied loudness gain description (e.g. "-2.4 dB (Matched)" or "0.0 dB (Direct)")
+    @Published public private(set) var currentGainDescription: String = "0.0 dB"
+    
+    /// Current target player gain multiplier (0.35 ... 1.0)
+    @Published public private(set) var currentVolumeGain: Float = 1.0
+    
+    /// Cache of analyzed normalized gains: "[bvid]_[cid]" -> Float
+    private var normalizedGainCache: [String: Float] = [:]
+    
+    /// Default baseline normalized gain to avoid initial burst before analysis finishes (~ -1.7 dB)
+    public let defaultNormalizedGain: Float = 0.82
+    
     @Published public var errorMessage: String?
     
     // MARK: - Internal Player
@@ -42,6 +64,7 @@ public final class AudioPlayerManager: ObservableObject {
     private var itemStatusObserver: NSKeyValueObservation?
     private var cancellables = Set<AnyCancellable>()
     private var streamTask: Task<Void, Never>?
+    private var normalizationTask: Task<Void, Never>?
     
     public init() {
         setupAudioSession()
@@ -217,6 +240,9 @@ public final class AudioPlayerManager: ObservableObject {
         avPlayer = AVPlayer(playerItem: playerItem)
         avPlayer?.rate = playbackRate
         
+        // Configure Volume Normalization (Loudness Matching)
+        configureVolumeNormalization(for: version, asset: playerItem.asset)
+        
         // Observe player item status
         itemStatusObserver = playerItem.observe(\.status, options: [.new, .old]) { [weak self] item, _ in
             DispatchQueue.main.async {
@@ -253,6 +279,202 @@ public final class AudioPlayerManager: ObservableObject {
         self.isBuffering = false
         
         updateNowPlaying()
+    }
+    
+    // MARK: - Volume Normalization & Loudness Matching Engine
+    
+    private func configureVolumeNormalization(for version: SongVersion, asset: AVAsset) {
+        let cacheKey = "\(version.bvid)_\(version.cid ?? 0)"
+        
+        guard isVolumeNormalizationEnabled else {
+            currentVolumeGain = 1.0
+            currentGainDescription = "0.0 dB (Direct)"
+            avPlayer?.volume = 1.0
+            return
+        }
+        
+        if let cached = normalizedGainCache[cacheKey] {
+            currentVolumeGain = cached
+            applyVolumeNormalization(smoothly: false)
+        } else {
+            // Apply baseline safe gain immediately to prevent sudden volume spikes
+            currentVolumeGain = defaultNormalizedGain
+            applyVolumeNormalization(smoothly: false)
+            
+            // Asynchronously analyze audio asset in background
+            startAssetLoudnessAnalysis(asset: asset, cacheKey: cacheKey)
+        }
+    }
+    
+    public func applyVolumeNormalization(smoothly: Bool = true) {
+        guard let player = avPlayer else { return }
+        
+        guard isVolumeNormalizationEnabled else {
+            currentVolumeGain = 1.0
+            currentGainDescription = "0.0 dB (Direct)"
+            if smoothly {
+                fadeVolume(to: 1.0)
+            } else {
+                player.volume = 1.0
+            }
+            return
+        }
+        
+        let targetGain = currentVolumeGain
+        let db = 20.0 * log10(max(Double(targetGain), 0.001))
+        let dbString = String(format: "%+.1f dB", db)
+        currentGainDescription = "\(dbString) (Matched)"
+        
+        if smoothly {
+            fadeVolume(to: targetGain)
+        } else {
+            player.volume = targetGain
+        }
+    }
+    
+    private func fadeVolume(to target: Float, duration: TimeInterval = 0.15) {
+        guard let player = avPlayer else { return }
+        let startVolume = player.volume
+        if abs(startVolume - target) < 0.01 {
+            player.volume = target
+            return
+        }
+        
+        let steps = 6
+        let stepDuration = duration / Double(steps)
+        let stepDelta = (target - startVolume) / Float(steps)
+        
+        for i in 1...steps {
+            DispatchQueue.main.asyncAfter(deadline: .now() + stepDuration * Double(i)) { [weak player] in
+                guard let player = player else { return }
+                if i == steps {
+                    player.volume = target
+                } else {
+                    player.volume += stepDelta
+                }
+            }
+        }
+    }
+    
+    private func startAssetLoudnessAnalysis(asset: AVAsset, cacheKey: String) {
+        normalizationTask?.cancel()
+        normalizationTask = Task { [weak self] in
+            guard let self = self else { return }
+            
+            let calculatedGain = await self.computeLoudnessGain(for: asset)
+            
+            guard !Task.isCancelled else { return }
+            
+            self.normalizedGainCache[cacheKey] = calculatedGain
+            
+            if self.isVolumeNormalizationEnabled {
+                self.currentVolumeGain = calculatedGain
+                self.applyVolumeNormalization(smoothly: true)
+            }
+        }
+    }
+    
+    private func computeLoudnessGain(for asset: AVAsset) async -> Float {
+        // Target RMS energy ~0.15 (standard streaming level ~ -14 LUFS)
+        let targetRMS: Double = 0.15
+        
+        do {
+            let tracks = try await asset.loadTracks(withMediaType: .audio)
+            guard let audioTrack = tracks.first else {
+                return defaultNormalizedGain
+            }
+            
+            guard let reader = try? AVAssetReader(asset: asset) else {
+                return defaultNormalizedGain
+            }
+            
+            let outputSettings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatLinearPCM,
+                AVLinearPCMBitDepthKey: 16,
+                AVLinearPCMIsFloatKey: false,
+                AVLinearPCMIsBigEndianKey: false,
+                AVLinearPCMIsNonInterleaved: false
+            ]
+            
+            let trackOutput = AVAssetReaderTrackOutput(track: audioTrack, outputSettings: outputSettings)
+            trackOutput.alwaysCopiesSampleData = false
+            
+            guard reader.canAdd(trackOutput) else {
+                return defaultNormalizedGain
+            }
+            reader.add(trackOutput)
+            
+            guard reader.startReading() else {
+                return defaultNormalizedGain
+            }
+            
+            var sumSquares: Double = 0
+            var totalSamples: Int = 0
+            var peakSample: Int16 = 0
+            
+            // Analyze up to 10 seconds of 44.1kHz audio samples
+            let maxSamplesToAnalyze = 44100 * 10
+            
+            while reader.status == .reading && totalSamples < maxSamplesToAnalyze {
+                guard let sampleBuffer = trackOutput.copyNextSampleBuffer(),
+                      let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else {
+                    break
+                }
+                
+                var lengthAtOffset: Int = 0
+                var totalLength: Int = 0
+                var dataPointer: UnsafeMutablePointer<Int8>?
+                
+                let status = CMBlockBufferGetDataPointer(
+                    blockBuffer,
+                    atOffset: 0,
+                    lengthAtOffsetOut: &lengthAtOffset,
+                    totalLengthOut: &totalLength,
+                    dataPointerOut: &dataPointer
+                )
+                
+                if status == noErr, let dataPointer = dataPointer {
+                    let sampleCount = totalLength / MemoryLayout<Int16>.size
+                    let buffer = UnsafeBufferPointer(
+                        start: dataPointer.withMemoryRebound(to: Int16.self, capacity: sampleCount) { $0 },
+                        count: sampleCount
+                    )
+                    
+                    for sample in buffer {
+                        let absVal = abs(sample)
+                        if absVal > peakSample { peakSample = absVal }
+                        let norm = Double(sample) / 32768.0
+                        sumSquares += norm * norm
+                    }
+                    totalSamples += sampleCount
+                }
+            }
+            
+            reader.cancelReading()
+            
+            guard totalSamples > 1000 else {
+                return defaultNormalizedGain
+            }
+            
+            let rms = sqrt(sumSquares / Double(totalSamples))
+            let peak = Double(peakSample) / 32768.0
+            
+            // ReplayGain loudness calculation
+            var gain = targetRMS / max(rms, 0.02)
+            
+            // Limiter: ensure peak * gain <= 0.95 to eliminate clipping
+            if peak > 0.01 {
+                let maxSafeGain = 0.95 / peak
+                gain = min(gain, maxSafeGain)
+            }
+            
+            // Safe bounds: [0.35, 1.0]
+            let finalGain = Float(min(1.0, max(0.35, gain)))
+            return finalGain
+            
+        } catch {
+            return defaultNormalizedGain
+        }
     }
     
     // MARK: - Track Auto-Advance (Features 2 & 3)

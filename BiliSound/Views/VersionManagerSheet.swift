@@ -199,7 +199,35 @@ public struct VersionManagerSheet: View {
                 )
                 
                 await MainActor.run {
-                    song.versions.append(newVersion)
+                    if details.pages.count > 1 && parsed.pageIndex == 1 && !newVersionBvid.contains("p=") {
+                        // Multi-part video: Import each part as a distinct version option
+                        for page in details.pages {
+                            let partTitle = page.part.isEmpty ? "Part \(page.page)" : page.part
+                            let label = newVersionName.isEmpty ? "\(details.title) (\(partTitle))" : "\(newVersionName) - \(partTitle)"
+                            let version = SongVersion(
+                                name: label,
+                                bvid: details.bvid,
+                                cid: page.cid,
+                                uploader: details.uploader,
+                                duration: page.duration > 0 ? page.duration : details.duration,
+                                audioQuality: "192kbps DASH",
+                                picUrl: details.picUrl
+                            )
+                            song.versions.append(version)
+                        }
+                    } else {
+                        let newVersion = SongVersion(
+                            name: label,
+                            bvid: details.bvid,
+                            cid: details.cid,
+                            uploader: details.uploader,
+                            duration: details.duration,
+                            audioQuality: "192kbps DASH",
+                            picUrl: details.picUrl
+                        )
+                        song.versions.append(newVersion)
+                    }
+                    PlaylistStorageManager.shared.savePlaylists()
                     newVersionBvid = ""
                     newVersionName = ""
                     isLoadingInfo = false

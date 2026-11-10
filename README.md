@@ -44,14 +44,34 @@ Songs on Bilibili often exist in multiple formats: official studio MVs, live sta
 
 ---
 
-### 💾 4. Robust Local Playlist Persistence
+### 🎞️ 4. Multi-Part Video (P1, P2, P3...) Import
+Many Bilibili music uploads are album compilations, OST discographies, or full live concerts split across multiple parts (pages).
+- **Automatic Part Detection**: When pasting any Bilibili URL or BV ID into `AddSongSheet`, BiliSound detects multi-part uploads (`P1` to `PN`) and displays a dedicated selection UI.
+- **Flexible Import Modes**:
+  - **Import as Separate Songs**: Ideal for albums and concert setlists. Each selected part is imported as an individual track with its own title, CID, and duration.
+  - **Import as Versions of One Song**: Ideal for videos containing MV, live performance, and acoustic takes across different parts.
+- **Selective Batching**: Check or uncheck individual parts, or use one-tap **"Select All" / "Deselect All"** buttons.
+
+---
+
+### 🔊 5. Volume Normalization (ReplayGain / Loudness Matching)
+Bilibili uploads have wildly differing loudness levels—from quiet amateur bedroom covers to brickwall-limited commercial master recordings.
+- **Sudden Volume Shock Prevention**: BiliSound includes an intelligent loudness matching and peak limiting engine that normalizes perceived loudness to standard **-14 LUFS** (target RMS ~0.15).
+- **Asynchronous Audio Analysis**: Analyzes audio stream dynamics in the background using `AVAssetReader` to compute real-time RMS energy and peak amplitude.
+- **Digital Peak Limiter**: Dynamic limiter ensures `peak × gain ≤ 0.95`, eliminating digital clipping and distortion.
+- **Smooth Volume Fading**: Transitions between tracks using click-free, pop-free volume ramping.
+- **User Toggle & Live Gain Indicator**: Easily toggle Volume Normalization in **Account & Settings > Playback Engine** and monitor real-time leveling gain (e.g. `-2.4 dB (Matched)`).
+
+---
+
+### 💾 6. Robust Local Playlist Persistence
 - **Persistent Storage Manager**: All playlists, custom added tracks, and multi-version mappings are atomically saved to local sandboxed JSON storage (`user_playlists.json`) via `PlaylistStorageManager`.
 - **Zero Data Loss**: Playlists and multi-version customizations persist across full app restarts and system memory reclaims.
 - **Safe Deletion**: Accidental single-swipe deletions on the main library are disabled. Playlists can only be deleted through a dedicated `"playlist settings"` page with an explicit confirmation dialog.
 
 ---
 
-### 🔀 5. Playback Modes & Session Non-Repeating Guarantee
+### 🔀 7. Playback Modes & Session Non-Repeating Guarantee
 Supports three distinct playback states:
 1. **Sequential Order (`.sequential`)**: Plays songs in normal order ($1 \to 2 \to 3 \to \dots \to N$).
 2. **Session Shuffle (`.shuffle`)**: Fair random autoplay with **single-session non-repeating guarantees**:
@@ -64,14 +84,14 @@ Supports three distinct playback states:
 
 ---
 
-### 🔐 6. Bilibili Account Authentication & VIP High-Bitrate Audio
+### 🔐 8. Bilibili Account Authentication & VIP High-Bitrate Audio
 - **Seamless Account Login**: Integrated `BiliAccountManager` and `BilibiliLoginSheet` support official Bilibili Web Login (QR code app scan, SMS code, password) as well as manual cookie (`SESSDATA`) entry.
 - **High-Bitrate Audio Stream Access**: Authenticated sessions unlock VIP audio streams up to **192kbps / 320kbps / Hi-Res DASH** and completely eliminate guest WAF rate-limiting challenges.
 - **Live Account Status**: Real-time display of your avatar, nickname, UID, and VIP tier badge in the Account tab.
 
 ---
 
-### 🎛️ 7. Full-Screen Player & Transport Controls
+### 🎛️ 9. Full-Screen Player & Transport Controls
 - **Interactive Scrubber**: Draggable progress bar (`ScrubberBar`) with live timestamp badge (`min:sec / total:sec`), elapsed time, and remaining time calculation.
 - **Safe Area & Display Optimized**: Tuned for rounded corners, top status bar, iPhone 13 Pro notch (47pt), and Dynamic Island with zero UI clipping.
 - **Jump Forward / Backward 5s**: Instant `±5s` audio skipping (`gobackward.5` and `goforward.5`).

@@ -221,6 +221,25 @@ public struct MainTabView: View {
                 Section(header: Text("Playback Engine")) {
                     Toggle("Default to Music Mode (Sound Only)", isOn: $playerManager.musicModeOnly)
                     
+                    Toggle(isOn: $playerManager.isVolumeNormalizationEnabled) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Volume Normalization (Loudness Matching)")
+                            Text("Equalizes volume across quiet and loud uploads to prevent sudden volume shocks")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    if playerManager.isVolumeNormalizationEnabled {
+                        HStack {
+                            Text("Loudness Leveling")
+                            Spacer()
+                            Text("Active (\(playerManager.currentGainDescription))")
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(.pink)
+                        }
+                    }
+                    
                     HStack {
                         Text("Active Stream Quality")
                         Spacer()
