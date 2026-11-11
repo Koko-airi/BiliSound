@@ -252,18 +252,23 @@ public struct PlaylistDetailView: View {
         }
     }
     
-    // Feature 2: Play consecutive & Shuffle actions
+    // Feature 2: Play consecutive & Shuffle actions with V1-Only Shuffle
     private func actionButtonsSection(_ playlist: Playlist) -> some View {
-        HStack(spacing: 12) {
-            // Feature 2 & Bug 1: Consecutive Normal Play with fresh, isolated session
+        HStack(spacing: 8) {
+            // Consecutive Normal Play with fresh, isolated session
             Button(action: {
+                let impact = UIImpactFeedbackGenerator(style: .medium)
+                impact.impactOccurred()
                 playerManager.startPlaylistConsecutive(playlist)
             }) {
-                HStack {
+                HStack(spacing: 6) {
                     Image(systemName: "play.fill")
-                    Text("Play Consecutive")
+                    Text("Consecutive")
                         .fontWeight(.semibold)
                 }
+                .font(.subheadline)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
                 .background(Color.pink)
@@ -272,15 +277,21 @@ public struct PlaylistDetailView: View {
             }
             .buttonStyle(.plain)
             
-            // Feature 2, 3 & Bug 1: Shuffle Autoplay with fresh, isolated session guarantee
+            // Session Shuffle (random versions) with fresh, isolated session guarantee
             Button(action: {
+                let impact = UIImpactFeedbackGenerator(style: .medium)
+                impact.impactOccurred()
+                playerManager.playDefaultVersionOnly = false
                 playerManager.startPlaylistShuffle(playlist)
             }) {
-                HStack {
+                HStack(spacing: 6) {
                     Image(systemName: "shuffle")
-                    Text("Session Shuffle")
+                    Text("Shuffle")
                         .fontWeight(.semibold)
                 }
+                .font(.subheadline)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
                 .background(Color.white.opacity(0.12))
@@ -292,6 +303,32 @@ public struct PlaylistDetailView: View {
                 .cornerRadius(10)
             }
             .buttonStyle(.plain)
+            
+            // Compact V1-Only Shuffle Button to the right of the 2 play buttons
+            Button(action: {
+                let impact = UIImpactFeedbackGenerator(style: .medium)
+                impact.impactOccurred()
+                playerManager.playDefaultVersionOnly = true
+                playerManager.startPlaylistShuffle(playlist)
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "shuffle")
+                        .font(.system(size: 13, weight: .bold))
+                    Text("V1")
+                        .font(.system(size: 12, weight: .heavy))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 12)
+                .background(playerManager.playDefaultVersionOnly ? Color.pink.opacity(0.25) : Color.white.opacity(0.12))
+                .foregroundColor(.pink)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.pink.opacity(playerManager.playDefaultVersionOnly ? 0.8 : 0.4), lineWidth: 1)
+                )
+                .cornerRadius(10)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Shuffle playlist using Version 1 only")
         }
         .padding(.vertical, 4)
     }

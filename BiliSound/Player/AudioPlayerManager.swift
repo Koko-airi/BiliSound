@@ -33,6 +33,20 @@ public final class AudioPlayerManager: ObservableObject {
     /// Audio stream quality currently playing
     @Published public private(set) var activeAudioQuality: String = "192kbps DASH"
     
+    /// When true, the player will only play the default (first) version of each song.
+    /// When false (default), the player will randomly pick one of the song's enabled versions.
+    @Published public var playDefaultVersionOnly: Bool = false {
+        didSet {
+            if playDefaultVersionOnly,
+               let song = currentSong,
+               let firstVersion = song.versions.first,
+               currentVersion?.id != firstVersion.id,
+               let playlist = currentPlaylist {
+                play(song: song, specificVersion: firstVersion, in: playlist)
+            }
+        }
+    }
+    
     // MARK: - Volume Normalization (ReplayGain / Loudness Matching)
     
     /// User preference to enable/disable volume normalization across tracks (defaults to true)
@@ -141,10 +155,12 @@ public final class AudioPlayerManager: ObservableObject {
         self.currentPlaylist = playlist
         self.currentSong = song
         
-        // Feature 4: Pick random version if not explicitly chosen
+        // Version selection: explicit version, default (first) version if locked, or random version
         let selectedVersion: SongVersion
         if let explicit = specificVersion {
             selectedVersion = explicit
+        } else if playDefaultVersionOnly, let firstVersion = song.versions.first {
+            selectedVersion = firstVersion
         } else if let randomVersion = song.selectRandomVersion() {
             selectedVersion = randomVersion
         } else {
@@ -175,6 +191,8 @@ public final class AudioPlayerManager: ObservableObject {
         let enabled = song.versions.filter { $0.isEnabled && $0.id != currentVersion?.id }
         let nextVersion = enabled.randomElement() ?? song.selectRandomVersion()
         if let nextVersion = nextVersion {
+            // Uncheck V1 only mode when user actively requests a re-roll
+            playDefaultVersionOnly = false
             play(song: song, specificVersion: nextVersion, in: playlist)
         }
     }

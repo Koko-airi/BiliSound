@@ -23,6 +23,8 @@ Songs on Bilibili often exist in multiple formats: official studio MVs, live sta
   }
   ```
 - **Weighted Random Roll**: Whenever a track plays, `song.selectRandomVersion()` randomly selects one of its active versions based on configured weights.
+- **Default (V1) Only Mode**: A small checkbox toggle on the spinning disk player lets you lock playback to the default (first) version of every song. When off (default), random versions are selected.
+- **Playlist V1 Shuffle Button**: A compact `[🔀 V1]` button to the right of the play buttons in the playlist detail view enables instant random shuffle while locking all tracks to their original/default version.
 - **Instant Version Re-Roll (`🎲`)**: Tap the dice icon in the Now Playing screen or mini bar to instantly re-roll to another version of the current song.
 - **Version Manager Sheet**: Easily inspect all versions of any song, adjust weights, toggle versions on/off, or paste any Bilibili BV URL to attach new versions.
 

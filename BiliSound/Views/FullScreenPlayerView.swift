@@ -230,7 +230,7 @@ public struct FullScreenPlayerView: View {
         return String(format: "%02d:%02d", mins, secs)
     }
     
-    // Feature 4: Banner showing active version and quick re-roll button
+    // Feature 4: Banner showing active version, quick re-roll button, and V1 Only checkbox
     private var versionSelectorBanner: some View {
         Group {
             if let song = playerManager.currentSong, let version = playerManager.currentVersion {
@@ -273,6 +273,32 @@ public struct FullScreenPlayerView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                    
+                    // Small Checkbox: When turned on, only play default (first) version; when off, play random version
+                    Button(action: {
+                        let impact = UIImpactFeedbackGenerator(style: .light)
+                        impact.impactOccurred()
+                        playerManager.playDefaultVersionOnly.toggle()
+                    }) {
+                        HStack(spacing: 5) {
+                            Image(systemName: playerManager.playDefaultVersionOnly ? "checkmark.square.fill" : "square")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(playerManager.playDefaultVersionOnly ? .pink : .white.opacity(0.6))
+                            
+                            Text("V1 Only")
+                                .font(.caption2.weight(.bold))
+                                .foregroundColor(playerManager.playDefaultVersionOnly ? .white : .white.opacity(0.75))
+                        }
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 6)
+                        .background(playerManager.playDefaultVersionOnly ? Color.pink.opacity(0.25) : Color.white.opacity(0.12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(playerManager.playDefaultVersionOnly ? Color.pink.opacity(0.6) : Color.white.opacity(0.15), lineWidth: 1)
+                        )
+                        .cornerRadius(16)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
