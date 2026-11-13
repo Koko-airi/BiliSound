@@ -11,6 +11,7 @@ public struct PlaylistDetailView: View {
     @State private var selectedSongForVersionManager: Song?
     @State private var showingAddSongSheet: Bool = false
     @State private var showingSessionHistory: Bool = false
+    @State private var showingSettings: Bool = false
     
     public init(
         playlistId: UUID,
@@ -80,8 +81,13 @@ public struct PlaylistDetailView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button(action: { showingSessionHistory = true }) {
-                    Image(systemName: "clock.arrow.circlepath")
+                HStack(spacing: 14) {
+                    Button(action: { showingSettings = true }) {
+                        Image(systemName: "gearshape")
+                    }
+                    Button(action: { showingSessionHistory = true }) {
+                        Image(systemName: "clock.arrow.circlepath")
+                    }
                 }
             }
         }
@@ -93,6 +99,16 @@ public struct PlaylistDetailView: View {
         }
         .sheet(isPresented: $showingSessionHistory) {
             SessionHistoryView(playerManager: playerManager)
+        }
+        .navigationDestination(isPresented: $showingSettings) {
+            PlaylistSettingsView(
+                playlistId: playlistId,
+                playlistName: playlist.name,
+                onDelete: {
+                    storageManager.removePlaylist(id: playlistId)
+                    dismiss()
+                }
+            )
         }
     }
     
@@ -153,24 +169,20 @@ public struct PlaylistDetailView: View {
     }
     
     private func playlistSettingsFooter(playlistName: String) -> some View {
-        ZStack {
-            NavigationLink(destination: PlaylistSettingsView(
-                playlistId: playlistId,
-                playlistName: playlistName,
-                onDelete: {
-                    storageManager.removePlaylist(id: playlistId)
-                    dismiss()
-                }
-            )) {
-                EmptyView()
-            }
-            .opacity(0)
-            
+        Button(action: {
+            showingSettings = true
+        }) {
             Text("playlist settings")
                 .font(.caption)
                 .foregroundColor(.secondary)
+                .padding(.vertical, 8)
                 .frame(maxWidth: .infinity, alignment: .center)
+                .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .simultaneousGesture(TapGesture().onEnded {
+            showingSettings = true
+        })
         .padding(.top, 4)
         .padding(.bottom, 2)
     }
