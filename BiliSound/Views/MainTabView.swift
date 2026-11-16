@@ -41,14 +41,23 @@ public struct MainTabView: View {
             // Docked Mini Player
             if playerManager.currentSong != nil {
                 NowPlayingMiniBar(playerManager: playerManager) {
-                    isFullScreenPresented = true
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                        isFullScreenPresented = true
+                    }
                 }
                 .padding(.bottom, 50)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-        }
-        .fullScreenCover(isPresented: $isFullScreenPresented) {
-            FullScreenPlayerView(playerManager: playerManager)
+            
+            // Full Screen Player Overlay (renders directly above TabView so underlying screen is visible during slide-down)
+            if isFullScreenPresented {
+                FullScreenPlayerView(
+                    playerManager: playerManager,
+                    isPresented: $isFullScreenPresented
+                )
+                .transition(.move(edge: .bottom))
+                .zIndex(100)
+            }
         }
         .sheet(isPresented: $showingLoginSheet) {
             BilibiliLoginSheet()
