@@ -24,3 +24,9 @@ project.xcworkspace
 Packages/
 Package.pins
 Package.resolved
+
+# Local User Data & Runtime Cache
+user_playlists.json
+*.local.json
+*.cookie
+*.cookies
