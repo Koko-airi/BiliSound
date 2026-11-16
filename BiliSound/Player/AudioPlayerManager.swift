@@ -102,7 +102,7 @@ public final class AudioPlayerManager: ObservableObject {
     private func setupAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.allowAirPlay, .defaultToSpeaker])
+            try session.setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetoothA2DP])
             try session.setActive(true)
         } catch {
             print("Failed to configure AVAudioSession: \(error)")
@@ -110,6 +110,7 @@ public final class AudioPlayerManager: ObservableObject {
     }
     
     private func registerNotifications() {
+        // Track ended
         NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: nil,
@@ -117,6 +118,67 @@ public final class AudioPlayerManager: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.handleTrackDidEnd()
+            }
+        }
+        
+        // Audio Route Changes (Car Bluetooth / CarPlay / Headphone connection & disconnection)
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor [weak self] in
+                guard let self = self,
+                      let userInfo = notification.userInfo,
+                      let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                      let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
+                    return
+                }
+                
+                switch reason {
+                case .newDeviceAvailable:
+                    // Connected to car or external audio: continue playback smoothly
+                    if self.isPlaying {
+                        self.play()
+                    }
+                case .oldDeviceUnavailable:
+                    // Disconnected from car (turned off car engine) or unplugged: pause playback cleanly
+                    if self.isPlaying {
+                        self.pause()
+                    }
+                default:
+                    break
+                }
+            }
+        }
+        
+        // Audio Interruptions (Incoming phone calls in car, Siri, navigation prompts)
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor [weak self] in
+                guard let self = self,
+                      let userInfo = notification.userInfo,
+                      let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+                      let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+                    return
+                }
+                
+                switch type {
+                case .began:
+                    self.pause()
+                case .ended:
+                    if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
+                        let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+                        if options.contains(.shouldResume) {
+                            self.play()
+                        }
+                    }
+                @unknown default:
+                    break
+                }
             }
         }
     }

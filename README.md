@@ -105,7 +105,7 @@ Supports three distinct playback states:
 - **Responsive Screen Geometry & Multi-Line Titles**: Detects device screen bounds dynamically via `GeometryReader`. Song titles wider than the screen automatically wrap up to 2 lines with balanced multi-line alignment and adaptive scaling (`minimumScaleFactor(0.85)`). The active version selector dynamically calculates remaining row width across device margins (16pt safe edge insets), maximizing horizontal title capacity before truncating.
 - **Jump Forward / Backward 5s**: Instant `±5s` audio skipping (`gobackward.5` and `goforward.5`).
 - **Speed Selector**: Variable playback speed menu supporting `0.75x`, `1.0x`, `1.25x`, `1.5x`, and `2.0x`.
-- **System Lock Screen & Dynamic Island**: Full integration with `MPNowPlayingInfoCenter` and `MPRemoteCommandCenter` (remote play, pause, scrubbing, track change, and artwork display).
+- **System Lock Screen, Dynamic Island & Car Audio Integration**: Full integration with `MPNowPlayingInfoCenter` and `MPRemoteCommandCenter`. When your iPhone connects to a car (via Bluetooth A2DP, USB cable, or CarPlay), audio automatically transitions and continues playing through the vehicle's speakers. Supports steering wheel transport controls (`Next`, `Prev`, `Play/Pause`, `Skip 5s`, scrubber), vehicle infotainment track/artist/artwork metadata display, intelligent call interruption handling (resumes automatically when a phone call in the car ends), and clean pause on car engine shutoff (`.oldDeviceUnavailable`).
 
 ---
 
