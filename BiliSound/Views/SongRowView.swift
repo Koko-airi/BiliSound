@@ -26,17 +26,7 @@ public struct SongRowView: View {
         HStack(spacing: 12) {
             // Artwork / Equalizer
             ZStack {
-                if let artStr = song.artworkUrl, let url = URL(string: artStr) {
-                    AsyncImage(url: url) { phase in
-                        if let image = phase.image {
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } else {
-                            defaultThumbnail
-                        }
-                    }
-                } else {
+                CachedThumbnailView(urlString: song.artworkUrl, targetSize: CGSize(width: 48, height: 48)) {
                     defaultThumbnail
                 }
                 

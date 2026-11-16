@@ -136,15 +136,7 @@ public struct ImportBiliPlaylistSheet: View {
         HStack(spacing: 12) {
             // Folder Cover
             ZStack {
-                if let coverStr = folder.coverUrl, let url = URL(string: coverStr) {
-                    AsyncImage(url: url) { phase in
-                        if let img = phase.image {
-                            img.resizable().scaledToFill()
-                        } else {
-                            Color.pink.opacity(0.15)
-                        }
-                    }
-                } else {
+                CachedThumbnailView(urlString: folder.coverUrl, targetSize: CGSize(width: 48, height: 48)) {
                     Color.pink.opacity(0.15)
                 }
                 

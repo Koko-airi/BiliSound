@@ -78,17 +78,7 @@ public struct PlaylistsView: View {
     private func playlistRow(_ playlist: Playlist) -> some View {
         HStack(spacing: 12) {
             ZStack {
-                if let coverStr = playlist.coverUrl, let url = URL(string: coverStr) {
-                    AsyncImage(url: url) { phase in
-                        if let image = phase.image {
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } else {
-                            Color.purple.opacity(0.3)
-                        }
-                    }
-                } else {
+                CachedThumbnailView(urlString: playlist.coverUrl, targetSize: CGSize(width: 54, height: 54)) {
                     Color.purple.opacity(0.3)
                 }
             }

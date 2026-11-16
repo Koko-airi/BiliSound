@@ -204,17 +204,7 @@ public struct PlaylistDetailView: View {
     private func headerSection(_ playlist: Playlist) -> some View {
         VStack(spacing: 12) {
             ZStack {
-                if let coverStr = playlist.coverUrl, let url = URL(string: coverStr) {
-                    AsyncImage(url: url) { phase in
-                        if let image = phase.image {
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } else {
-                            defaultCover
-                        }
-                    }
-                } else {
+                CachedThumbnailView(urlString: playlist.coverUrl, targetSize: CGSize(width: 160, height: 160)) {
                     defaultCover
                 }
             }

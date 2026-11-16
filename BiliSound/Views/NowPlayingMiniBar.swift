@@ -17,18 +17,10 @@ public struct NowPlayingMiniBar: View {
                 HStack(spacing: 12) {
                     // Artwork Thumbnail
                     ZStack {
-                        if let artStr = playerManager.currentVersion?.picUrl ?? song.artworkUrl,
-                           let url = URL(string: artStr) {
-                            AsyncImage(url: url) { phase in
-                                if let image = phase.image {
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                } else {
-                                    Color.pink.opacity(0.3)
-                                }
-                            }
-                        } else {
+                        CachedThumbnailView(
+                            urlString: playerManager.currentVersion?.picUrl ?? song.artworkUrl,
+                            targetSize: CGSize(width: 44, height: 44)
+                        ) {
                             Color.pink.opacity(0.3)
                         }
                     }
