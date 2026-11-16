@@ -156,11 +156,18 @@ public struct PlaylistDetailView: View {
             isPlayingCurrent: isCurrent && playerManager.isPlaying,
             activeVersionName: isCurrent ? playerManager.currentVersion?.name : nil,
             onSelect: {
-                playerManager.play(
-                    song: song,
-                    in: playlist,
-                    resetSession: playerManager.currentPlaylist?.id != playlist.id
-                )
+                if isCurrent {
+                    if !playerManager.isPlaying {
+                        playerManager.play()
+                    }
+                    playerManager.openFullScreenPlayer()
+                } else {
+                    playerManager.play(
+                        song: song,
+                        in: playlist,
+                        resetSession: playerManager.currentPlaylist?.id != playlist.id
+                    )
+                }
             },
             onManageVersions: {
                 selectedSongForVersionManager = song

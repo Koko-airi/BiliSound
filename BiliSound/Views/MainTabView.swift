@@ -65,6 +65,21 @@ public struct MainTabView: View {
         .sheet(isPresented: $showingImportSheet) {
             ImportBiliPlaylistSheet()
         }
+        .onChange(of: playerManager.shouldPresentFullScreenPlayer) { _, shouldPresent in
+            if shouldPresent {
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                    isFullScreenPresented = true
+                }
+                playerManager.shouldPresentFullScreenPlayer = false
+            }
+        }
+        .onChange(of: playerManager.currentSong) { _, newSong in
+            if newSong == nil && isFullScreenPresented {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    isFullScreenPresented = false
+                }
+            }
+        }
     }
     
     // MARK: - Quick Stream Tab

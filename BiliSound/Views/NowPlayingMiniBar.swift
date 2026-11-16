@@ -6,6 +6,9 @@ public struct NowPlayingMiniBar: View {
     @ObservedObject var playerManager: AudioPlayerManager
     let onTap: () -> Void
     
+    @State private var dragOffsetY: CGFloat = 0
+    @State private var isDismissing: Bool = false
+    
     public init(playerManager: AudioPlayerManager = .shared, onTap: @escaping () -> Void) {
         self.playerManager = playerManager
         self.onTap = onTap
@@ -110,7 +113,51 @@ public struct NowPlayingMiniBar: View {
                     }
                 )
                 .contentShape(Rectangle())
+                .offset(y: dragOffsetY)
+                .opacity(dragOffsetY > 0 ? Double(max(0.2, 1.0 - (dragOffsetY / 120.0))) : 1.0)
+                .gesture(
+                    DragGesture(minimumDistance: 10, coordinateSpace: .local)
+                        .onChanged { value in
+                            guard !isDismissing else { return }
+                            let travelY = value.translation.height
+                            if travelY > 0 {
+                                dragOffsetY = travelY
+                            } else {
+                                dragOffsetY = travelY * 0.15
+                            }
+                        }
+                        .onEnded { value in
+                            guard !isDismissing else { return }
+                            let verticalTravel = value.translation.height
+                            let predictedY = value.predictedEndTranslation.height
+                            
+                            // If slid downwards past threshold (28pt) or flicked downwards
+                            if verticalTravel > 28 || predictedY > 45 {
+                                isDismissing = true
+                                let impact = UIImpactFeedbackGenerator(style: .medium)
+                                impact.impactOccurred()
+                                
+                                withAnimation(.easeOut(duration: 0.18)) {
+                                    dragOffsetY = 110
+                                }
+                                
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                                    withAnimation(.easeOut(duration: 0.15)) {
+                                        playerManager.closeCurrentSong()
+                                    }
+                                    dragOffsetY = 0
+                                    isDismissing = false
+                                }
+                            } else {
+                                // Cancelled or dragged upwards: spring back to resting place
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
+                                    dragOffsetY = 0
+                                }
+                            }
+                        }
+                )
                 .onTapGesture {
+                    guard !isDismissing else { return }
                     onTap()
                 }
                 .padding(.horizontal, 12)

@@ -33,6 +33,9 @@ public final class AudioPlayerManager: ObservableObject {
     /// Audio stream quality currently playing
     @Published public private(set) var activeAudioQuality: String = "192kbps DASH"
     
+    /// Flag requesting presentation of the full-screen player view
+    @Published public var shouldPresentFullScreenPlayer: Bool = false
+    
     /// When true, the player will only play the default (first) version of each song.
     /// When false (default), the player will randomly pick one of the song's enabled versions.
     @Published public var playDefaultVersionOnly: Bool = false {
@@ -551,6 +554,38 @@ public final class AudioPlayerManager: ObservableObject {
     public func pause() {
         avPlayer?.pause()
         isPlaying = false
+        updateNowPlaying()
+    }
+    
+    /// Request to present the full-screen player view from anywhere in the app
+    public func openFullScreenPlayer() {
+        guard currentSong != nil else { return }
+        shouldPresentFullScreenPlayer = true
+    }
+    
+    /// Stops playback, clears the active track and session state, and dismisses player UI
+    public func closeCurrentSong() {
+        streamTask?.cancel()
+        streamTask = nil
+        
+        if let token = timeObserverToken {
+            avPlayer?.removeTimeObserver(token)
+            timeObserverToken = nil
+        }
+        itemStatusObserver?.invalidate()
+        itemStatusObserver = nil
+        
+        avPlayer?.pause()
+        avPlayer?.replaceCurrentItem(with: nil)
+        avPlayer = nil
+        
+        isPlaying = false
+        isBuffering = false
+        currentTime = 0
+        duration = 0
+        currentSong = nil
+        currentVersion = nil
+        
         updateNowPlaying()
     }
     
