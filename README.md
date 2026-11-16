@@ -97,6 +97,7 @@ Supports three distinct playback states:
 ### 🎛️ 9. Full-Screen Player & Transport Controls
 - **Interactive Scrubber**: Draggable progress bar (`ScrubberBar`) with live timestamp badge (`min:sec / total:sec`), elapsed time, and remaining time calculation.
 - **Safe Area & Display Optimized**: Tuned for rounded corners, top status bar, iPhone 13 Pro notch (47pt), and Dynamic Island with zero UI clipping.
+- **Responsive Screen Geometry & Multi-Line Titles**: Detects device screen bounds dynamically via `GeometryReader`. Song titles wider than the screen automatically wrap up to 2 lines with balanced multi-line alignment and adaptive scaling (`minimumScaleFactor(0.85)`). The active version selector dynamically calculates remaining row width across device margins (16pt safe edge insets), maximizing horizontal title capacity before truncating.
 - **Jump Forward / Backward 5s**: Instant `±5s` audio skipping (`gobackward.5` and `goforward.5`).
 - **Speed Selector**: Variable playback speed menu supporting `0.75x`, `1.0x`, `1.25x`, `1.5x`, and `2.0x`.
 - **System Lock Screen & Dynamic Island**: Full integration with `MPNowPlayingInfoCenter` and `MPRemoteCommandCenter` (remote play, pause, scrubbing, track change, and artwork display).

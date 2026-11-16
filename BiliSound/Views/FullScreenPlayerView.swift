@@ -52,12 +52,11 @@ public struct FullScreenPlayerView: View {
                     
                     Spacer(minLength: 6)
                     
-                    // Track Info & Feature 4 Version Picker
+                    // Track Info & Feature 4 Version Picker (Responsive to Phone Screen Width)
                     VStack(spacing: 6) {
-                        trackInfoSection
-                        versionSelectorBanner
+                        trackInfoSection(screenWidth: screenWidth)
+                        versionSelectorBanner(screenWidth: screenWidth)
                     }
-                    .padding(.horizontal, 32)
                     .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 8)
@@ -182,19 +181,27 @@ public struct FullScreenPlayerView: View {
         }
     }
     
-    private var trackInfoSection: some View {
-        VStack(spacing: 4) {
+    private func trackInfoSection(screenWidth: CGFloat) -> some View {
+        let maxTitleWidth = max(100, screenWidth - 40)
+        
+        return VStack(spacing: 4) {
             Text(playerManager.currentSong?.title ?? "No Song Selected")
                 .font(.title2.weight(.bold))
                 .foregroundColor(.white)
                 .multilineTextAlignment(.center)
-                .lineLimit(1)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+                .frame(maxWidth: maxTitleWidth)
             
             Text(playerManager.currentSong?.artist ?? "")
                 .font(.subheadline)
                 .foregroundColor(.white.opacity(0.7))
+                .multilineTextAlignment(.center)
                 .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .frame(maxWidth: maxTitleWidth)
         }
+        .frame(maxWidth: screenWidth)
     }
     
     // Prominent Timestamp Badge displayed directly on the spinning disk page
@@ -231,9 +238,19 @@ public struct FullScreenPlayerView: View {
     }
     
     // Feature 4: Banner showing active version, quick re-roll button, and V1 Only checkbox
-    private var versionSelectorBanner: some View {
+    // Dynamically scales with detected phone screen width, maximizing title space before shortening
+    private func versionSelectorBanner(screenWidth: CGFloat) -> some View {
         Group {
             if let song = playerManager.currentSong, let version = playerManager.currentVersion {
+                let availableRowWidth = max(200, screenWidth - 32) // 16pt margin from each device screen edge
+                let hasMultipleVersions = song.versions.count > 1
+                
+                // Accessories widths:
+                // Re-roll button: 28pt + 8pt spacing = 36pt (when present)
+                // V1 Only button: ~78pt + 8pt spacing = 86pt
+                let accessoriesWidth: CGFloat = hasMultipleVersions ? 122 : 86
+                let maxVersionPillWidth = max(120, availableRowWidth - accessoriesWidth)
+                
                 HStack(spacing: 8) {
                     Button(action: { showingVersionSheet = true }) {
                         HStack(spacing: 6) {
@@ -241,24 +258,29 @@ public struct FullScreenPlayerView: View {
                                 .font(.caption.weight(.bold))
                                 .foregroundColor(.pink)
                             
-                            Text("Version: \(version.name)")
+                            Text(version.name.isEmpty ? "Default Version" : version.name)
                                 .font(.caption.weight(.semibold))
                                 .foregroundColor(.white)
                                 .lineLimit(1)
+                                .truncationMode(.tail)
+                                .minimumScaleFactor(0.85)
                             
                             Image(systemName: "chevron.right")
                                 .font(.caption2)
                                 .foregroundColor(.white.opacity(0.5))
                         }
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, 10)
                         .padding(.vertical, 6)
+                        .frame(maxWidth: maxVersionPillWidth)
                         .background(Color.white.opacity(0.12))
                         .cornerRadius(20)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Version: \(version.name)")
+                    .layoutPriority(0)
                     
                     // Quick Re-roll button (Feature 4 random select)
-                    if song.versions.count > 1 {
+                    if hasMultipleVersions {
                         Button(action: {
                             let impact = UIImpactFeedbackGenerator(style: .medium)
                             impact.impactOccurred()
@@ -272,6 +294,8 @@ public struct FullScreenPlayerView: View {
                                 .clipShape(Circle())
                         }
                         .buttonStyle(.plain)
+                        .fixedSize()
+                        .layoutPriority(1)
                     }
                     
                     // Small Checkbox: When turned on, only play default (first) version; when off, play random version
@@ -299,7 +323,10 @@ public struct FullScreenPlayerView: View {
                         .cornerRadius(16)
                     }
                     .buttonStyle(.plain)
+                    .fixedSize()
+                    .layoutPriority(1)
                 }
+                .frame(maxWidth: availableRowWidth)
             }
         }
     }
