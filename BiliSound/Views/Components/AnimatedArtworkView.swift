@@ -16,18 +16,16 @@ public struct AnimatedArtworkView: View {
     
     public var body: some View {
         ZStack {
-            // Ambient colorful shadow
-            if let urlStr = imageUrlString, let url = URL(string: urlStr) {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image {
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: size * 0.9, height: size * 0.9)
-                            .blur(radius: 28)
-                            .opacity(0.6)
-                    }
-                }
+            // Ambient colorful shadow (downsampled to 100x100 thumbnail to eliminate memory spike)
+            if let urlStr = imageUrlString {
+                CachedThumbnailView(
+                    urlString: urlStr,
+                    targetSize: CGSize(width: 100, height: 100),
+                    placeholder: { Color.clear }
+                )
+                .frame(width: size * 0.85, height: size * 0.85)
+                .blur(radius: 20)
+                .opacity(0.55)
             }
             
             // Vinyl Record Ring Background
@@ -57,23 +55,12 @@ public struct AnimatedArtworkView: View {
                 .stroke(Color.white.opacity(0.04), lineWidth: 1)
                 .frame(width: size * 0.68, height: size * 0.68)
             
-            // Center Album Art
-            Group {
-                if let urlStr = imageUrlString, let url = URL(string: urlStr) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        default:
-                            fallbackArt
-                        }
-                    }
-                } else {
-                    fallbackArt
-                }
-            }
+            // Center Album Art (downsampled to exact disk centerpiece size)
+            CachedThumbnailView(
+                urlString: imageUrlString,
+                targetSize: CGSize(width: size * 0.6, height: size * 0.6),
+                placeholder: { fallbackArt }
+            )
             .frame(width: size * 0.6, height: size * 0.6)
             .clipShape(Circle())
             .overlay(

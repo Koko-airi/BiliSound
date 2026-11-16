@@ -21,21 +21,20 @@ public struct FullScreenPlayerView: View {
             let safeTop = outerGeo.safeAreaInsets.top
             let safeBottom = outerGeo.safeAreaInsets.bottom
             
+            // Standard comfortable horizontal width anchored to device width (32pt margin on each side)
+            let contentWidth = max(200, screenWidth - 64)
+            
             // Adaptively scale rotating disk so all player elements (timestamps, scrubber, controls)
             // fit comfortably without clipping on vertical/portrait screens of any device size.
             let diskSize: CGFloat = min(screenWidth - 100, screenHeight > 750 ? 230 : 170)
             
             ZStack {
                 // Background Dynamic Blurred Art spanning the full window including under notch/corners
-                backgroundBlur
-                    .frame(width: screenWidth, height: screenHeight)
+                backgroundBlur(screenWidth: screenWidth, screenHeight: screenHeight)
                 
                 VStack(spacing: 0) {
                     // Top Header Bar: comfortably under notch with dismiss and history buttons moved closer to center
-                    topBar
-                        .padding(.top, max(safeTop, 47) + 4)
-                        .padding(.horizontal, 48)
-                        .frame(maxWidth: .infinity)
+                    topBar(width: contentWidth, safeTop: safeTop)
                     
                     Spacer(minLength: 6)
                     
@@ -63,41 +62,35 @@ public struct FullScreenPlayerView: View {
                     
                     // Prominent Timestamp Badge directly under spinning disk and track info
                     prominentTimestampBadge
-                        .padding(.horizontal, 32)
                         .frame(maxWidth: .infinity)
                     
                     Spacer(minLength: 12)
                     
-                    // Feature 5: Scrubber Bar - ample side padding to prevent timestamps clipping the edge
+                    // Feature 5: Scrubber Bar - explicitly sized to contentWidth to prevent timestamps clipping the screen edge
                     ScrubberBar(
                         currentTime: playerManager.currentTime,
                         duration: playerManager.duration,
+                        barWidth: contentWidth,
                         onSeek: { newTime in
                             playerManager.seek(to: newTime)
                         }
                     )
-                    .padding(.horizontal, 40)
-                    .frame(maxWidth: .infinity)
+                    .frame(width: contentWidth)
                     
                     Spacer(minLength: 14)
                     
                     // Feature 5: Transport Controls (ff5, back 5, skip, play/pause)
-                    playbackControls
-                        .padding(.horizontal, 34)
-                        .padding(.vertical, 6)
-                        .frame(maxWidth: .infinity)
+                    playbackControls(width: contentWidth)
                     
                     Spacer(minLength: 10)
                     
                     // Bottom Utility Bar: safely inset from rounded corners and home indicator
-                    bottomUtilityBar
-                        .padding(.horizontal, 38)
-                        .padding(.bottom, max(safeBottom, 20) + 8)
-                        .frame(maxWidth: .infinity)
+                    bottomUtilityBar(width: contentWidth, safeBottom: safeBottom)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(width: screenWidth, height: screenHeight)
             }
             .frame(width: screenWidth, height: screenHeight)
+            .clipped()
         }
         .ignoresSafeArea()
         .sheet(isPresented: $showingVersionSheet) {
@@ -121,23 +114,23 @@ public struct FullScreenPlayerView: View {
     
     // MARK: - Subviews
     
-    private var backgroundBlur: some View {
+    private func backgroundBlur(screenWidth: CGFloat, screenHeight: CGFloat) -> some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.black
             
-            if let artStr = playerManager.currentVersion?.picUrl ?? playerManager.currentSong?.artworkUrl,
-               let url = URL(string: artStr) {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image {
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .blur(radius: 50)
-                            .opacity(0.45)
+            if let artStr = playerManager.currentVersion?.picUrl ?? playerManager.currentSong?.artworkUrl {
+                CachedThumbnailView(
+                    urlString: artStr,
+                    targetSize: CGSize(width: 120, height: 120),
+                    placeholder: {
+                        Color.clear
                     }
-                }
-                .ignoresSafeArea()
+                )
+                .scaledToFill()
+                .frame(width: screenWidth, height: screenHeight)
+                .clipped()
+                .blur(radius: 35)
+                .opacity(0.45)
             }
             
             LinearGradient(
@@ -145,11 +138,12 @@ public struct FullScreenPlayerView: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .ignoresSafeArea()
         }
+        .frame(width: screenWidth, height: screenHeight)
+        .clipped()
     }
     
-    private var topBar: some View {
+    private func topBar(width: CGFloat, safeTop: CGFloat) -> some View {
         HStack {
             Button(action: { dismiss() }) {
                 Image(systemName: "chevron.down")
@@ -179,6 +173,8 @@ public struct FullScreenPlayerView: View {
                     .clipShape(Circle())
             }
         }
+        .frame(width: width)
+        .padding(.top, max(safeTop, 47) + 4)
     }
     
     private func trackInfoSection(screenWidth: CGFloat) -> some View {
@@ -332,8 +328,8 @@ public struct FullScreenPlayerView: View {
     }
     
     // Feature 5 & 2: Controls row
-    private var playbackControls: some View {
-        HStack(spacing: 16) {
+    private func playbackControls(width: CGFloat) -> some View {
+        HStack(spacing: 0) {
             // Playback Mode toggle (Sequential / Shuffle / RepeatOne) - Feature 2
             Button(action: {
                 let impact = UIImpactFeedbackGenerator(style: .light)
@@ -357,6 +353,8 @@ public struct FullScreenPlayerView: View {
             }
             .buttonStyle(.plain)
             
+            Spacer()
+            
             // Feature 5: Previous Song
             Button(action: { playerManager.skipToPrevious() }) {
                 Image(systemName: "backward.fill")
@@ -364,6 +362,8 @@ public struct FullScreenPlayerView: View {
                     .foregroundColor(.white)
             }
             .buttonStyle(.plain)
+            
+            Spacer()
             
             // Feature 5: Play / Pause Hero Button
             Button(action: { playerManager.togglePlayPause() }) {
@@ -386,6 +386,8 @@ public struct FullScreenPlayerView: View {
             }
             .buttonStyle(.plain)
             
+            Spacer()
+            
             // Feature 5: Next Song
             Button(action: { playerManager.skipToNext() }) {
                 Image(systemName: "forward.fill")
@@ -393,6 +395,8 @@ public struct FullScreenPlayerView: View {
                     .foregroundColor(.white)
             }
             .buttonStyle(.plain)
+            
+            Spacer()
             
             // Feature 5: Fast Forward 5s
             Button(action: { playerManager.fastForward5() }) {
@@ -413,9 +417,10 @@ public struct FullScreenPlayerView: View {
             }
             .buttonStyle(.plain)
         }
+        .frame(width: width)
     }
     
-    private var bottomUtilityBar: some View {
+    private func bottomUtilityBar(width: CGFloat, safeBottom: CGFloat) -> some View {
         HStack {
             // Quality Tag
             HStack(spacing: 4) {
@@ -453,5 +458,7 @@ public struct FullScreenPlayerView: View {
                     .cornerRadius(8)
             }
         }
+        .frame(width: width)
+        .padding(.bottom, max(safeBottom, 20) + 8)
     }
 }
