@@ -97,6 +97,7 @@ public final class BiliThumbnailCache {
     public static let shared = BiliThumbnailCache()
     
     private let cache = NSCache<NSURL, UIImage>()
+    private var baseKeyCache = [String: UIImage]()
     
     private init() {
         // Enforce strict 20 MB ceiling for in-memory thumbnail bitmaps
@@ -105,11 +106,18 @@ public final class BiliThumbnailCache {
     }
     
     public func image(for url: URL) -> UIImage? {
-        cache.object(forKey: url as NSURL)
+        if let img = cache.object(forKey: url as NSURL) {
+            return img
+        }
+        return baseKeyCache[url.path]
     }
     
     public func setImage(_ image: UIImage, for url: URL, cost: Int) {
         cache.setObject(image, forKey: url as NSURL, cost: cost)
+        baseKeyCache[url.path] = image
+        if baseKeyCache.count > 50 {
+            baseKeyCache.remove(at: baseKeyCache.startIndex)
+        }
     }
 }
 
@@ -130,6 +138,15 @@ public struct CachedThumbnailView<Placeholder: View>: View {
         self.urlString = urlString
         self.targetSize = targetSize
         self.placeholder = placeholder()
+        
+        let pixelSize = Int(max(targetSize.width, targetSize.height) * 3)
+        if let urlStr = urlString,
+           let url = BiliImageOptimizer.thumbnailUrl(for: urlStr, targetPixelSize: pixelSize),
+           let cached = BiliThumbnailCache.shared.image(for: url) {
+            _loadedImage = State(initialValue: cached)
+        } else {
+            _loadedImage = State(initialValue: nil)
+        }
     }
     
     public var body: some View {

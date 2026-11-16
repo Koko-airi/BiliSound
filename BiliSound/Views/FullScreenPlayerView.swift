@@ -106,6 +106,7 @@ public struct FullScreenPlayerView: View {
                 .frame(width: screenWidth, height: screenHeight)
             }
             .frame(width: screenWidth, height: screenHeight)
+            .compositingGroup()
             .clipped()
             .cornerRadius(dismissOffset > 0 ? min(36, dismissOffset / 6) : 0)
             .shadow(color: .black.opacity(dismissOffset > 0 ? 0.35 : 0), radius: 25, x: 0, y: -5)
