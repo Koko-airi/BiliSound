@@ -10,6 +10,10 @@ public struct FullScreenPlayerView: View {
     @State private var showingVersionSheet: Bool = false
     @State private var showingSessionSheet: Bool = false
     
+    // Interactive slide-to-dismiss gesture state
+    @State private var dismissOffset: CGFloat = 0
+    @State private var isDraggingDismiss: Bool = false
+    
     public init(playerManager: AudioPlayerManager = .shared) {
         self.playerManager = playerManager
     }
@@ -34,7 +38,7 @@ public struct FullScreenPlayerView: View {
                 
                 VStack(spacing: 0) {
                     // Top Header Bar: comfortably under notch with dismiss and history buttons moved closer to center
-                    topBar(width: contentWidth, safeTop: safeTop)
+                    topBar(width: contentWidth, safeTop: safeTop, screenHeight: screenHeight)
                     
                     Spacer(minLength: 6)
                     
@@ -91,6 +95,51 @@ public struct FullScreenPlayerView: View {
             }
             .frame(width: screenWidth, height: screenHeight)
             .clipped()
+            .cornerRadius(dismissOffset > 0 ? min(36, dismissOffset / 6) : 0)
+            .offset(y: dismissOffset)
+            .gesture(
+                DragGesture(minimumDistance: 15, coordinateSpace: .global)
+                    .onChanged { value in
+                        // Activate if drag starts on the left side (left 45%) or near top of screen
+                        guard isDraggingDismiss || value.startLocation.x < screenWidth * 0.45 || value.startLocation.y < 220 else { return }
+                        
+                        let horizontalTravel = value.translation.width
+                        let verticalTravel = value.translation.height
+                        
+                        // User is sliding right from the left, or pulling down
+                        if horizontalTravel > 0 || verticalTravel > 0 {
+                            isDraggingDismiss = true
+                            // Direct mapping: horizontal slide from left or vertical pull drops screen down
+                            let rawDrop = max(verticalTravel, horizontalTravel * 0.95)
+                            dismissOffset = max(0, rawDrop)
+                        }
+                    }
+                    .onEnded { value in
+                        guard isDraggingDismiss else { return }
+                        isDraggingDismiss = false
+                        
+                        let horizontalTravel = value.translation.width
+                        let verticalTravel = value.translation.height
+                        let predictedX = value.predictedEndTranslation.width
+                        let predictedY = value.predictedEndTranslation.height
+                        
+                        // Threshold: dragged > 60 points or fast flick (predicted > 120 points)
+                        let shouldDismiss = horizontalTravel > 60 || verticalTravel > 60 || predictedX > 120 || predictedY > 120
+                        
+                        if shouldDismiss {
+                            performDismissWithDropAnimation(screenHeight: screenHeight)
+                        } else {
+                            // Cancelled: smoothly spring back up into place
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                dismissOffset = 0
+                            }
+                        }
+                    }
+            )
+            .onAppear {
+                dismissOffset = 0
+                isDraggingDismiss = false
+            }
         }
         .ignoresSafeArea()
         .sheet(isPresented: $showingVersionSheet) {
@@ -143,9 +192,21 @@ public struct FullScreenPlayerView: View {
         .clipped()
     }
     
-    private func topBar(width: CGFloat, safeTop: CGFloat) -> some View {
+    private func performDismissWithDropAnimation(screenHeight: CGFloat) {
+        let impact = UIImpactFeedbackGenerator(style: .medium)
+        impact.impactOccurred()
+        
+        withAnimation(.easeOut(duration: 0.22)) {
+            dismissOffset = screenHeight
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            dismiss()
+        }
+    }
+    
+    private func topBar(width: CGFloat, safeTop: CGFloat, screenHeight: CGFloat) -> some View {
         HStack {
-            Button(action: { dismiss() }) {
+            Button(action: { performDismissWithDropAnimation(screenHeight: screenHeight) }) {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.white.opacity(0.8))
