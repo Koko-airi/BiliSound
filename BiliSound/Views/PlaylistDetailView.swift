@@ -12,6 +12,7 @@ public struct PlaylistDetailView: View {
     @State private var showingAddSongSheet: Bool = false
     @State private var showingSessionHistory: Bool = false
     @State private var showingSettings: Bool = false
+    @State private var searchText: String = ""
     
     public init(
         playlistId: UUID,
@@ -72,6 +73,11 @@ public struct PlaylistDetailView: View {
         }
         .listStyle(.insetGrouped)
         .safeAreaPadding(.bottom, playerManager.currentSong != nil ? 80 : 0)
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .automatic),
+            prompt: "Search songs, artists, or versions..."
+        )
         .navigationTitle(playlist.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -112,26 +118,92 @@ public struct PlaylistDetailView: View {
         }
     }
     
+    private func filteredSongs(in playlist: Playlist) -> [Song] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return playlist.songs }
+        
+        return playlist.songs.filter { song in
+            if song.title.lowercased().contains(query) { return true }
+            if song.artist.lowercased().contains(query) { return true }
+            if let album = song.album, album.lowercased().contains(query) { return true }
+            if song.versions.contains(where: {
+                $0.name.lowercased().contains(query) ||
+                $0.bvid.lowercased().contains(query) ||
+                $0.uploader.lowercased().contains(query)
+            }) {
+                return true
+            }
+            return false
+        }
+    }
+    
+    private func effectivePlaylist(from playlist: Playlist) -> Playlist {
+        let songs = filteredSongs(in: playlist)
+        guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return playlist }
+        return Playlist(
+            id: playlist.id,
+            name: "\(playlist.name) (Filtered)",
+            description: playlist.description,
+            coverUrl: playlist.coverUrl,
+            songs: songs
+        )
+    }
+    
     @ViewBuilder
     private func songsSection(playlist: Playlist) -> some View {
+        let songs = filteredSongs(in: playlist)
         Section {
             if playlist.songs.isEmpty {
                 emptySongsView
+            } else if songs.isEmpty {
+                emptySearchResultsView
             } else {
-                ForEach(playlist.songs) { song in
+                ForEach(songs) { song in
                     songRow(song, in: playlist)
                 }
                 .onDelete { indexSet in
                     if let index = storageManager.playlists.firstIndex(where: { $0.id == playlistId }) {
-                        storageManager.playlists[index].songs.remove(atOffsets: indexSet)
+                        let songsToDelete = indexSet.map { songs[$0] }
+                        storageManager.playlists[index].songs.removeAll { s in
+                            songsToDelete.contains(where: { $0.id == s.id })
+                        }
+                        PlaylistStorageManager.shared.savePlaylists()
                     }
                 }
             }
         } header: {
-            Text("Songs (\(playlist.songs.count))")
+            if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("Songs (\(playlist.songs.count))")
+            } else {
+                Text("Matching Songs (\(songs.count) of \(playlist.songs.count))")
+            }
         } footer: {
             playlistSettingsFooter(playlistName: playlist.name)
         }
+    }
+    
+    private var emptySearchResultsView: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 32))
+                .foregroundColor(.secondary)
+            Text("No results for \"\(searchText)\"")
+                .font(.headline)
+                .foregroundColor(.primary)
+            Text("Try searching by song title, artist, version name, or BV ID.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            Button("Clear Search") {
+                searchText = ""
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundColor(.pink)
+            .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+        .listRowBackground(Color.clear)
     }
     
     private var emptySongsView: some View {
@@ -263,12 +335,13 @@ public struct PlaylistDetailView: View {
     
     // Feature 2: Play consecutive & Shuffle actions with V1-Only Shuffle
     private func actionButtonsSection(_ playlist: Playlist) -> some View {
-        HStack(spacing: 8) {
+        let activePlaylist = effectivePlaylist(from: playlist)
+        return HStack(spacing: 8) {
             // Consecutive Normal Play with fresh, isolated session
             Button(action: {
                 let impact = UIImpactFeedbackGenerator(style: .medium)
                 impact.impactOccurred()
-                playerManager.startPlaylistConsecutive(playlist)
+                playerManager.startPlaylistConsecutive(activePlaylist)
             }) {
                 HStack(spacing: 6) {
                     Image(systemName: "play.fill")
@@ -291,7 +364,7 @@ public struct PlaylistDetailView: View {
                 let impact = UIImpactFeedbackGenerator(style: .medium)
                 impact.impactOccurred()
                 playerManager.playDefaultVersionOnly = false
-                playerManager.startPlaylistShuffle(playlist)
+                playerManager.startPlaylistShuffle(activePlaylist)
             }) {
                 HStack(spacing: 6) {
                     Image(systemName: "shuffle")
@@ -318,7 +391,7 @@ public struct PlaylistDetailView: View {
                 let impact = UIImpactFeedbackGenerator(style: .medium)
                 impact.impactOccurred()
                 playerManager.playDefaultVersionOnly = true
-                playerManager.startPlaylistShuffle(playlist)
+                playerManager.startPlaylistShuffle(activePlaylist)
             }) {
                 HStack(spacing: 4) {
                     Image(systemName: "shuffle")

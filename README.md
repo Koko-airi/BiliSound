@@ -117,6 +117,15 @@ Supports three distinct playback states:
 
 ---
 
+### 🔍 11. Real-Time Library & In-Playlist Search Bar
+- **In-Playlist Search & Filtering**: Real-time `.searchable` search bar embedded in `PlaylistDetailView` allowing users to quickly find songs within large collections (including 100+ song imported folders).
+- **Deep Multi-Field Matching**: Instantly searches across song titles, artist names, albums, individual version descriptions, and Bilibili BV IDs (e.g., typing a BV ID immediately finds its corresponding track).
+- **Context-Aware Playback (Filtered Play & Shuffle)**: When searching in a playlist, the **Consecutive** and **Shuffle** buttons automatically scope playback to the active search results, allowing you to play or shuffle only the filtered subset of tracks.
+- **Safe ID-Based Deletion**: Swipe-to-delete in search results safely resolves by song ID rather than index offsets, preventing unintended track deletions.
+- **Global Library Search**: Embedded search bar in `PlaylistsView` that filters user playlists by playlist name, description, or any matching songs/artists inside the playlist.
+
+---
+
 ## 📁 Project Architecture
 
 ```

@@ -12,19 +12,47 @@ public struct PlaylistsView: View {
     @State private var showingLoginSheet: Bool = false
     @State private var newPlaylistName: String = ""
     @State private var newPlaylistDesc: String = ""
+    @State private var searchText: String = ""
     
     public init(playlists: Binding<[Playlist]>, playerManager: AudioPlayerManager = .shared) {
         self._playlists = playlists
         self.playerManager = playerManager
     }
     
+    private var filteredPlaylists: [Playlist] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return playlists }
+        return playlists.filter { playlist in
+            if playlist.name.lowercased().contains(query) { return true }
+            if !playlist.description.isEmpty && playlist.description.lowercased().contains(query) { return true }
+            if playlist.songs.contains(where: {
+                $0.title.lowercased().contains(query) ||
+                $0.artist.lowercased().contains(query) ||
+                $0.versions.contains(where: { $0.name.lowercased().contains(query) })
+            }) {
+                return true
+            }
+            return false
+        }
+    }
+    
     public var body: some View {
         NavigationStack {
             List {
-                Section(header: Text("Playlists")) {
-                    ForEach(playlists) { playlist in
-                        NavigationLink(destination: PlaylistDetailView(playlistId: playlist.id, playerManager: playerManager)) {
-                            playlistRow(playlist)
+                Section(header: Text(searchText.isEmpty ? "Playlists" : "Matching Playlists (\(filteredPlaylists.count))")) {
+                    if filteredPlaylists.isEmpty && !searchText.isEmpty {
+                        VStack(spacing: 8) {
+                            Text("No playlists matching \"\(searchText)\"")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 16)
+                    } else {
+                        ForEach(filteredPlaylists) { playlist in
+                            NavigationLink(destination: PlaylistDetailView(playlistId: playlist.id, playerManager: playerManager)) {
+                                playlistRow(playlist)
+                            }
                         }
                     }
                 }
@@ -32,6 +60,7 @@ public struct PlaylistsView: View {
             .listStyle(.insetGrouped)
             // Bug 2: Bottom padding prevents mini bar from occluding bottom playlist rows
             .safeAreaPadding(.bottom, playerManager.currentSong != nil ? 80 : 0)
+            .searchable(text: $searchText, prompt: "Search playlists or tracks...")
             .navigationTitle("BiliSound")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
