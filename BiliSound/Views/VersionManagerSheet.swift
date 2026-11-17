@@ -53,7 +53,7 @@ public struct VersionManagerSheet: View {
                 
                 // Add Version Form
                 Section(header: Text("Add Another Bilibili Version")) {
-                    TextField("Bilibili URL or BV ID (e.g. BV1...)", text: $newVersionBvid)
+                    TextField("Bilibili URL, BV ID, or b23.tv link", text: $newVersionBvid)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
                     
@@ -175,15 +175,21 @@ public struct VersionManagerSheet: View {
     }
     
     private func addVersionFromBili() {
-        guard let parsed = BilibiliURLParser.parse(input: newVersionBvid) else {
-            errorMessage = "Invalid BV ID or URL format."
-            return
-        }
+        let input = newVersionBvid.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty else { return }
         
         isLoadingInfo = true
         errorMessage = nil
         
         Task {
+            guard let parsed = await BilibiliURLParser.parseAsync(input: input) else {
+                await MainActor.run {
+                    self.isLoadingInfo = false
+                    self.errorMessage = "Invalid BV ID, URL, or b23.tv link."
+                }
+                return
+            }
+            
             do {
                 let details = try await BilibiliAPIService.shared.fetchVideoDetails(bvid: parsed.bvid, pageIndex: parsed.pageIndex)
                 let label = newVersionName.isEmpty ? details.title : newVersionName

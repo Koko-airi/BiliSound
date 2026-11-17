@@ -88,11 +88,11 @@ public struct MainTabView: View {
         NavigationStack {
             Form {
                 Section(header: Text("Stream Any Bilibili Audio")) {
-                    Text("Paste any Bilibili video URL or BV ID to instantly stream in pure audio mode without video overhead.")
+                    Text("Paste any Bilibili video URL, BV ID, or b23.tv share link to instantly stream in pure audio mode without video overhead.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
-                    TextField("https://www.bilibili.com/video/BV... or BV...", text: $quickPlayInput)
+                    TextField("BV ID, bilibili.com URL, or b23.tv share link", text: $quickPlayInput)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
                     
@@ -313,15 +313,21 @@ public struct MainTabView: View {
     }
     
     private func startQuickPlay() {
-        guard let parsed = BilibiliURLParser.parse(input: quickPlayInput) else {
-            quickPlayError = "Invalid BV ID or URL."
-            return
-        }
+        let input = quickPlayInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty else { return }
         
         isQuickPlaying = true
         quickPlayError = nil
         
         Task {
+            guard let parsed = await BilibiliURLParser.parseAsync(input: input) else {
+                await MainActor.run {
+                    self.isQuickPlaying = false
+                    self.quickPlayError = "Invalid BV ID, URL, or b23.tv link."
+                }
+                return
+            }
+            
             do {
                 let details = try await BilibiliAPIService.shared.fetchVideoDetails(bvid: parsed.bvid, pageIndex: parsed.pageIndex)
                 let version = SongVersion(

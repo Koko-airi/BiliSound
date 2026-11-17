@@ -16,6 +16,7 @@ public struct AddSongSheet: View {
     @State private var fetchedCoverUrl: String = ""
     @State private var fetchedDuration: TimeInterval = 0
     @State private var fetchedCid: Int = 0
+    @State private var resolvedBvid: String = ""
     
     // MARK: - Multi-Part Video State (Feature: P1, P2, P3... Import)
     @State private var detectedPages: [BiliPage] = []
@@ -43,7 +44,7 @@ public struct AddSongSheet: View {
             Form {
                 Section(header: Text("Bilibili Source")) {
                     HStack {
-                        TextField("Enter BV ID or Video URL", text: $inputUrlOrBvid)
+                        TextField("Enter BV ID, video URL, or b23.tv share link", text: $inputUrlOrBvid)
                             .autocapitalization(.none)
                             .disableAutocorrection(true)
                         
@@ -261,19 +262,23 @@ public struct AddSongSheet: View {
     // MARK: - Metadata Fetching
     
     private func fetchMetadata() {
-        guard let parsed = BilibiliURLParser.parse(input: inputUrlOrBvid) else {
-            errorMessage = "Please enter a valid Bilibili video URL or BV ID."
-            return
-        }
-        
         isFetchingInfo = true
         errorMessage = nil
         
         Task {
+            guard let parsed = await BilibiliURLParser.parseAsync(input: inputUrlOrBvid) else {
+                await MainActor.run {
+                    self.isFetchingInfo = false
+                    self.errorMessage = "Please enter a valid Bilibili video URL, BV ID, or b23.tv link."
+                }
+                return
+            }
+            
             do {
                 let details = try await BilibiliAPIService.shared.fetchVideoDetails(bvid: parsed.bvid, pageIndex: parsed.pageIndex)
                 
                 await MainActor.run {
+                    self.resolvedBvid = parsed.bvid
                     self.songTitle = details.title
                     self.artistName = details.uploader
                     self.versionName = "Original MV"
@@ -298,7 +303,8 @@ public struct AddSongSheet: View {
     // MARK: - Saving
     
     private func saveSongOrVersion() {
-        guard let parsed = BilibiliURLParser.parse(input: inputUrlOrBvid) else { return }
+        let bvid = !resolvedBvid.isEmpty ? resolvedBvid : (BilibiliURLParser.parse(input: inputUrlOrBvid)?.bvid ?? "")
+        guard !bvid.isEmpty else { return }
         
         // Multi-Part Import Handling
         if detectedPages.count > 1 {
@@ -312,7 +318,7 @@ public struct AddSongSheet: View {
                     let partLabel = page.part.isEmpty ? "Part \(page.page)" : page.part
                     let newVersion = SongVersion(
                         name: partLabel,
-                        bvid: parsed.bvid,
+                        bvid: bvid,
                         cid: page.cid,
                         uploader: artistName,
                         duration: page.duration > 0 ? page.duration : fetchedDuration,
@@ -336,7 +342,7 @@ public struct AddSongSheet: View {
                     
                     let version = SongVersion(
                         name: partTitle.isEmpty ? "P\(page.page)" : partTitle,
-                        bvid: parsed.bvid,
+                        bvid: bvid,
                         cid: page.cid,
                         uploader: artistName,
                         duration: page.duration > 0 ? page.duration : fetchedDuration,
@@ -360,7 +366,7 @@ public struct AddSongSheet: View {
                     let label = partTitle.isEmpty ? "Part \(page.page)" : partTitle
                     versions.append(SongVersion(
                         name: label,
-                        bvid: parsed.bvid,
+                        bvid: bvid,
                         cid: page.cid,
                         uploader: artistName,
                         duration: page.duration > 0 ? page.duration : fetchedDuration,
@@ -386,7 +392,7 @@ public struct AddSongSheet: View {
         // Single Part Import Handling
         let newVersion = SongVersion(
             name: versionName.isEmpty ? "Original MV" : versionName,
-            bvid: parsed.bvid,
+            bvid: bvid,
             cid: fetchedCid,
             uploader: artistName,
             duration: fetchedDuration,
