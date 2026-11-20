@@ -14,6 +14,10 @@ public struct PlaylistDetailView: View {
     @State private var showingSettings: Bool = false
     @State private var searchText: String = ""
     
+    @State private var recommendedTracks: [RecommendedTrack] = []
+    @State private var isLoadingRecommendations: Bool = false
+    @State private var selectedTrackForVersionSheet: RecommendedTrack? = nil
+    
     public init(
         playlistId: UUID,
         playerManager: AudioPlayerManager = .shared
@@ -70,6 +74,8 @@ public struct PlaylistDetailView: View {
                 .listRowBackground(Color.clear)
             
             songsSection(playlist: playlist)
+            
+            recommendationsSection(playlist: playlist)
         }
         .listStyle(.insetGrouped)
         .safeAreaPadding(.bottom, playerManager.currentSong != nil ? 80 : 0)
@@ -100,11 +106,28 @@ public struct PlaylistDetailView: View {
         .sheet(item: $selectedSongForVersionManager) { song in
             versionManagerSheet(for: song)
         }
+        .sheet(item: $selectedTrackForVersionSheet) { track in
+            AddAsVersionSheet(
+                recommendedTrack: track,
+                playlist: playlist,
+                onDismiss: {
+                    if BiliRecommendationService.shared.dismissedBvIds.contains(track.bvid) {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            recommendedTracks.removeAll { $0.bvid == track.bvid }
+                        }
+                    }
+                    selectedTrackForVersionSheet = nil
+                }
+            )
+        }
         .sheet(isPresented: $showingAddSongSheet) {
             AddSongSheet(playlist: boundPlaylist)
         }
         .sheet(isPresented: $showingSessionHistory) {
             SessionHistoryView(playerManager: playerManager)
+        }
+        .task(id: playlistId) {
+            await loadRecommendations(for: playlist)
         }
         .navigationDestination(isPresented: $showingSettings) {
             PlaylistSettingsView(
@@ -177,9 +200,152 @@ public struct PlaylistDetailView: View {
             } else {
                 Text("Matching Songs (\(songs.count) of \(playlist.songs.count))")
             }
+        }
+    }
+    
+    @ViewBuilder
+    private func recommendationsSection(playlist: Playlist) -> some View {
+        Section {
+            if isLoadingRecommendations && recommendedTracks.isEmpty {
+                HStack(spacing: 8) {
+                    Spacer()
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Finding recommendations...")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding(.vertical, 10)
+            } else if recommendedTracks.isEmpty {
+                HStack {
+                    Spacer()
+                    Text("No recommendations available.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding(.vertical, 8)
+            } else {
+                ForEach(recommendedTracks) { track in
+                    recommendationRow(track, in: playlist)
+                }
+            }
+        } header: {
+            recommendationsHeader(playlist: playlist)
         } footer: {
             playlistSettingsFooter(playlistName: playlist.name)
         }
+    }
+    
+    private func recommendationsHeader(playlist: Playlist) -> some View {
+        HStack {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .foregroundColor(.pink)
+                Text("Recommended for You")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.primary)
+            }
+            .textCase(nil)
+            
+            Spacer()
+            
+            Button(action: {
+                Task {
+                    await loadRecommendations(for: playlist)
+                }
+            }) {
+                HStack(spacing: 4) {
+                    if isLoadingRecommendations {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.caption.weight(.semibold))
+                    }
+                    Text("Refresh")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundColor(.pink)
+            }
+            .buttonStyle(.plain)
+            .disabled(isLoadingRecommendations)
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+    }
+    
+    private func recommendationRow(_ track: RecommendedTrack, in playlist: Playlist) -> some View {
+        HStack(spacing: 12) {
+            CachedThumbnailView(urlString: track.coverUrl, targetSize: CGSize(width: 50, height: 50)) {
+                ZStack {
+                    Color.secondary.opacity(0.15)
+                    Image(systemName: "music.note")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .frame(width: 50, height: 50)
+            .cornerRadius(6)
+            
+            VStack(alignment: .leading, spacing: 3) {
+                Text(track.title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                
+                HStack(spacing: 5) {
+                    Text(track.uploader)
+                        .lineLimit(1)
+                    Text("•")
+                    Text(track.formattedDuration)
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            HStack(spacing: 12) {
+                Button(action: {
+                    addTrackToPlaylist(track, in: playlist)
+                }) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.pink)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Add to Playlist")
+                
+                Button(action: {
+                    selectedTrackForVersionSheet = track
+                }) {
+                    Image(systemName: "arrow.triangle.branch")
+                        .font(.system(size: 18))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Add as Version")
+            }
+        }
+        .padding(.vertical, 2)
+    }
+    
+    private func addTrackToPlaylist(_ track: RecommendedTrack, in playlist: Playlist) {
+        let impact = UIImpactFeedbackGenerator(style: .medium)
+        impact.impactOccurred()
+        
+        _ = BiliRecommendationService.shared.addTrackAsNewSong(track: track, to: playlist.id)
+        withAnimation(.easeInOut(duration: 0.25)) {
+            recommendedTracks.removeAll { $0.bvid == track.bvid }
+        }
+    }
+    
+    private func loadRecommendations(for playlist: Playlist) async {
+        guard !isLoadingRecommendations else { return }
+        isLoadingRecommendations = true
+        let tracks = await BiliRecommendationService.shared.fetchRecommendations(for: playlist)
+        self.recommendedTracks = tracks
+        self.isLoadingRecommendations = false
     }
     
     private var emptySearchResultsView: some View {

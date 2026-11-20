@@ -126,6 +126,18 @@ Supports three distinct playback states:
 
 ---
 
+### 🎵 12. Smart Playlist Recommendation Engine & "Add as Version"
+- **Multi-Version Seed Sampling**: Analyzes all songs in the current playlist and gathers candidate seed versions across all active versions (`playlist.songs.flatMap { $0.versions }`). Randomly samples 2–3 active seeds to form a balanced musical prompt representing the playlist's true diversity.
+- **Pure Music Context (Cookie-Free Related API)**: Queries Bilibili's related videos endpoint (`https://api.bilibili.com/x/web-interface/archive/related`) via an ephemeral `URLSession` strictly devoid of user cookies, preventing recommendations from being skewed by unrelated video browsing history or personal account algorithms.
+- **Parallel Fetching & Round-Robin Pooling**: Concurrently queries recommendation seeds using Swift Structured Concurrency (`TaskGroup`). Interleaves results round-robin across seeds, strips HTML tags (e.g. `<em class="keyword">`), and deduplicates candidate entries.
+- **Playlist Duplication & Dismissal Filtering**: Automatically discards videos already present in any version of any track in the current playlist, as well as tracks previously dismissed or added during the active session.
+- **Two Flexible Ingestion Pathways**:
+  - **Add to Playlist (`+`)**: Instantly creates a new track in the playlist with full title, artist, duration, and downsampled artwork.
+  - **Add as Version (`arrow.triangle.branch`)**: Opens `AddAsVersionSheet` with real-time `.searchable` filtering, allowing users to attach the discovered Bilibili video as an alternate live, acoustic, or cover version (`SongVersion`) to any existing song in the playlist.
+- **Integrated UI & Trailing Refresh Control**: Elegantly integrated directly above the playlist settings footer with subtle section separation and an asymmetrical right-aligned refresh button.
+
+---
+
 ## 📁 Project Architecture
 
 ```
@@ -148,6 +160,7 @@ BiliSound/
 │   │   ├── BilibiliAPIService.swift     # DASH extraction, metadata & favorites API
 │   │   ├── BilibiliURLParser.swift      # URL & BV ID regex parser
 │   │   ├── BilibiliAudioProxy.swift     # Anti-leech HTTP header injector
+│   │   ├── BiliRecommendationService.swift # Multi-version seed sampling & related video recommendations
 │   │   └── SampleData.swift             # Verified multi-version starter playlists
 │   ├── Player/
 │   │   ├── AudioPlayerManager.swift     # AVPlayer playback coordinator & state machine
@@ -161,6 +174,7 @@ BiliSound/
 │   │   ├── NowPlayingMiniBar.swift      # Docked bottom mini-player bar
 │   │   ├── SongRowView.swift            # Song row with version badge & re-roll action
 │   │   ├── VersionManagerSheet.swift    # Multi-version configuration & weights sheet
+│   │   ├── AddAsVersionSheet.swift      # Attach recommended videos as alternate song versions
 │   │   ├── ImportBiliPlaylistSheet.swift# Bilibili favorites folder picker & importer
 │   │   ├── BilibiliLoginSheet.swift     # Official Web Login & manual cookie modal
 │   │   ├── SessionHistoryView.swift     # Fair shuffle session inspector
