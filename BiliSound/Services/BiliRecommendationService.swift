@@ -43,6 +43,26 @@ public struct RecommendedTrack: Identifiable, Sendable, Codable, Hashable, Equat
     public var webUrl: URL? {
         URL(string: "https://www.bilibili.com/video/\(bvid)")
     }
+    
+    /// Converts this recommendation into a playable Song model for immediate preview or playback
+    public func toSong() -> Song {
+        let version = SongVersion(
+            name: title,
+            bvid: bvid,
+            uploader: uploader,
+            duration: duration,
+            audioQuality: "192kbps DASH",
+            picUrl: coverUrl,
+            isEnabled: true,
+            weight: 1.0
+        )
+        return Song(
+            title: title,
+            artist: uploader,
+            artworkUrl: coverUrl,
+            versions: [version]
+        )
+    }
 }
 
 /// Service that generates music-focused playlist recommendations by querying Bilibili's related videos API.

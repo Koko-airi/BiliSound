@@ -276,58 +276,102 @@ public struct PlaylistDetailView: View {
     }
     
     private func recommendationRow(_ track: RecommendedTrack, in playlist: Playlist) -> some View {
-        HStack(spacing: 12) {
-            CachedThumbnailView(urlString: track.coverUrl, targetSize: CGSize(width: 50, height: 50)) {
-                ZStack {
-                    Color.secondary.opacity(0.15)
-                    Image(systemName: "music.note")
-                        .foregroundColor(.secondary)
-                }
-            }
-            .frame(width: 50, height: 50)
-            .cornerRadius(6)
-            
-            VStack(alignment: .leading, spacing: 3) {
-                Text(track.title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                
-                HStack(spacing: 5) {
-                    Text(track.uploader)
-                        .lineLimit(1)
-                    Text("•")
-                    Text(track.formattedDuration)
-                }
-                .font(.caption)
-                .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-            
+        let isCurrent = (playerManager.currentSong?.versions.first?.bvid == track.bvid) || (playerManager.currentVersion?.bvid == track.bvid)
+        let isPlayingThis = isCurrent && playerManager.isPlaying
+        
+        return Button(action: {
+            playRecommendedTrack(track, in: playlist)
+        }) {
             HStack(spacing: 12) {
-                Button(action: {
-                    addTrackToPlaylist(track, in: playlist)
-                }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(.pink)
+                ZStack {
+                    CachedThumbnailView(urlString: track.coverUrl, targetSize: CGSize(width: 50, height: 50)) {
+                        ZStack {
+                            Color.secondary.opacity(0.15)
+                            Image(systemName: "music.note")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    if isPlayingThis {
+                        Color.black.opacity(0.4)
+                        Image(systemName: "waveform")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.pink)
+                            .symbolEffect(.variableColor.iterative.reversing)
+                    }
                 }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("Add to Playlist")
+                .frame(width: 50, height: 50)
+                .cornerRadius(6)
                 
-                Button(action: {
-                    selectedTrackForVersionSheet = track
-                }) {
-                    Image(systemName: "arrow.triangle.branch")
-                        .font(.system(size: 18))
-                        .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(track.title)
+                        .font(.subheadline.weight(isPlayingThis ? .bold : .medium))
+                        .foregroundColor(isPlayingThis ? .pink : .primary)
+                        .lineLimit(1)
+                    
+                    HStack(spacing: 5) {
+                        Text(track.uploader)
+                            .lineLimit(1)
+                        Text("•")
+                        Text(track.formattedDuration)
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("Add as Version")
+                
+                Spacer()
+                
+                HStack(spacing: 12) {
+                    Button(action: {
+                        addTrackToPlaylist(track, in: playlist)
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.pink)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Add to Playlist")
+                    
+                    Button(action: {
+                        selectedTrackForVersionSheet = track
+                    }) {
+                        Image(systemName: "arrow.triangle.branch")
+                            .font(.system(size: 18))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Add as Version")
+                }
             }
+            .contentShape(Rectangle())
+            .padding(.vertical, 2)
         }
-        .padding(.vertical, 2)
+        .buttonStyle(.plain)
+    }
+    
+    private func playRecommendedTrack(_ track: RecommendedTrack, in playlist: Playlist) {
+        let isCurrent = (playerManager.currentSong?.versions.first?.bvid == track.bvid) || (playerManager.currentVersion?.bvid == track.bvid)
+        if isCurrent {
+            if !playerManager.isPlaying {
+                playerManager.play()
+            }
+            playerManager.openFullScreenPlayer()
+            return
+        }
+        
+        let impact = UIImpactFeedbackGenerator(style: .medium)
+        impact.impactOccurred()
+        
+        // Build an ephemeral in-memory playlist for recommendations so the track streams without adding to user's saved playlist
+        let tempPlaylist = Playlist(
+            name: "Recommended (\(playlist.name))",
+            description: "Temporary recommendations queue",
+            songs: recommendedTracks.map { $0.toSong() }
+        )
+        
+        if let targetSong = tempPlaylist.songs.first(where: { $0.versions.first?.bvid == track.bvid }) {
+            playerManager.play(song: targetSong, in: tempPlaylist, resetSession: true)
+        }
     }
     
     private func addTrackToPlaylist(_ track: RecommendedTrack, in playlist: Playlist) {
