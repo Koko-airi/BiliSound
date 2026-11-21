@@ -74,8 +74,27 @@ public final class BiliRecommendationService: ObservableObject {
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String? = nil
     
-    /// In-memory dismissed set to filter out dismissed or already-added songs
-    public var dismissedBvIds: Set<String> = []
+    // MARK: - 21-Day Dismissal Management (Ultra-low memory: ~10 KB)
+    private let dismissedStorageKey = "bili_recommendations_dismissed_timestamps"
+    public static let dismissalRetentionPeriod: TimeInterval = 21 * 24 * 60 * 60 // 21 days in seconds
+    
+    /// Map of dismissed BV ID -> timestamp of dismissal
+    private var dismissedTimestamps: [String: TimeInterval] = [:]
+    
+    /// Active (non-expired) dismissed BV IDs
+    public var dismissedBvIds: Set<String> {
+        get {
+            let cutoff = Date().timeIntervalSince1970 - Self.dismissalRetentionPeriod
+            return Set(dismissedTimestamps.filter { $0.value > cutoff }.keys)
+        }
+        set {
+            let now = Date().timeIntervalSince1970
+            for bvid in newValue {
+                dismissedTimestamps[bvid] = now
+            }
+            saveDismissedTimestamps()
+        }
+    }
     
     private let session: URLSession
     
@@ -90,6 +109,39 @@ public final class BiliRecommendationService: ObservableObject {
             config.httpShouldSetCookies = false
             config.timeoutIntervalForRequest = 10
             self.session = URLSession(configuration: config)
+        }
+        
+        // Load persisted dismissed timestamps and purge any older than 21 days
+        if let saved = UserDefaults.standard.dictionary(forKey: dismissedStorageKey) as? [String: TimeInterval] {
+            self.dismissedTimestamps = saved
+            purgeExpiredDismissals()
+        }
+    }
+    
+    private func purgeExpiredDismissals() {
+        let cutoff = Date().timeIntervalSince1970 - Self.dismissalRetentionPeriod
+        let countBefore = dismissedTimestamps.count
+        dismissedTimestamps = dismissedTimestamps.filter { $0.value > cutoff }
+        if dismissedTimestamps.count != countBefore {
+            saveDismissedTimestamps()
+        }
+    }
+    
+    private func saveDismissedTimestamps() {
+        UserDefaults.standard.set(dismissedTimestamps, forKey: dismissedStorageKey)
+    }
+    
+    /// Checks whether a track was dismissed within the active 21-day retention window
+    public func isDismissed(bvid: String) -> Bool {
+        guard let timestamp = dismissedTimestamps[bvid] else { return false }
+        let now = Date().timeIntervalSince1970
+        if (now - timestamp) < Self.dismissalRetentionPeriod {
+            return true
+        } else {
+            // Expired after 21 days: silently prune and allow track to reappear in recommendations
+            dismissedTimestamps.removeValue(forKey: bvid)
+            saveDismissedTimestamps()
+            return false
         }
     }
     
@@ -192,7 +244,7 @@ public final class BiliRecommendationService: ObservableObject {
             let bvid = track.bvid
             if seenBvIds.contains(bvid) { continue }
             if existingPlaylistBvIds.contains(bvid) { continue }
-            if dismissedBvIds.contains(bvid) { continue }
+            if isDismissed(bvid: bvid) { continue }
             
             seenBvIds.insert(bvid)
             finalTracks.append(track)
@@ -285,9 +337,10 @@ public final class BiliRecommendationService: ObservableObject {
     
     // MARK: - Convenience Methods
     
-    /// Dismisses a track so it is no longer recommended
+    /// Dismisses a track so it is no longer recommended for the 21-day window
     public func dismissTrack(bvid: String) {
-        dismissedBvIds.insert(bvid)
+        dismissedTimestamps[bvid] = Date().timeIntervalSince1970
+        saveDismissedTimestamps()
         recommendations.removeAll { $0.bvid == bvid }
     }
     
@@ -296,9 +349,10 @@ public final class BiliRecommendationService: ObservableObject {
         dismissTrack(bvid: track.bvid)
     }
     
-    /// Clears the in-memory dismissed tracks set
+    /// Clears all dismissed records
     public func clearDismissed() {
-        dismissedBvIds.removeAll()
+        dismissedTimestamps.removeAll()
+        saveDismissedTimestamps()
     }
     
     /// Convenience method: Adds a recommended track as a brand new Song in the designated playlist

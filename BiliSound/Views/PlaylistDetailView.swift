@@ -347,6 +347,23 @@ public struct PlaylistDetailView: View {
             .padding(.vertical, 2)
         }
         .buttonStyle(.plain)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                dismissRecommendedTrack(track)
+            } label: {
+                Label("Dismiss", systemImage: "xmark.circle")
+            }
+        }
+    }
+    
+    private func dismissRecommendedTrack(_ track: RecommendedTrack) {
+        let impact = UIImpactFeedbackGenerator(style: .medium)
+        impact.impactOccurred()
+        
+        BiliRecommendationService.shared.dismissTrack(bvid: track.bvid)
+        withAnimation(.easeInOut(duration: 0.25)) {
+            recommendedTracks.removeAll { $0.bvid == track.bvid }
+        }
     }
     
     private func playRecommendedTrack(_ track: RecommendedTrack, in playlist: Playlist) {
